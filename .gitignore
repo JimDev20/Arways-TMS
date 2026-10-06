@@ -1,0 +1,66 @@
+# Dependencies — never push installed packages
+node_modules/
+**/node_modules/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# Env / credentials — never push real secrets or samples (local only)
+.env
+.env.*
+*.example
+**/*.example
+
+# Samples / seeds — local only, never push
+supabase/seed.sql
+supabase/seed-sample-route.sql
+
+# Docs with demo data — local only, never push
+docs/
+
+# Logs — never push local run logs
+*.log
+logs/
+**/logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Build / generated output — never push
+.next/
+**/.next/
+dist/
+**/dist/
+build/
+**/build/
+out/
+coverage/
+**/coverage/
+*.tsbuildinfo
+**/*.tsbuildinfo
+next-env.d.ts
+**/next-env.d.ts
+.turbo/
+.vercel/
+**/.vercel/
+
+# Supabase local state — never push
+supabase/.branches/
+supabase/.temp/
+supabase/.branches
+supabase/.temp
+
+# OS / editor junk — never push
+.DS_Store
+Thumbs.db
+*.pem
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo

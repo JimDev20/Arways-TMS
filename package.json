@@ -1,0 +1,15 @@
+{
+  "name": "arways-tms",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Arways Trucking Management System - Web-Based Multi-Client Dispatch and Delivery Management",
+  "scripts": {
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:backend": "npm --prefix backend run start:dev",
+    "install:all": "npm --prefix frontend install && npm --prefix backend install",
+    "db:types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > frontend/src/lib/database.types.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

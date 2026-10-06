@@ -1,0 +1,168 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  /* Brand: dispatch-navy + signal-amber. Light theme: bright dispatch office,
+     drivers outdoors in daylight — contrast first. */
+  --color-ink: #17222f;
+  --color-brand-50: #eef4ff;
+  --color-brand-100: #dce7fd;
+  --color-brand-600: #1d4ed8;
+  --color-brand-700: #1e40af;
+  --color-brand-900: #1e2a4a;
+  --color-signal-400: #f5a623;
+  --color-signal-500: #e08e00;
+  --color-ok-600: #15803d;
+  --color-bad-600: #b91c1c;
+}
+
+:root {
+  --background: #f4f6f9;
+  --foreground: var(--color-ink);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  caret-color: var(--color-brand-600);
+}
+
+/* Dark mode (wireframe: 🌙 toggle in every portal header) */
+.dark {
+  --background: #0b1220;
+  --foreground: #e2e8f0;
+}
+.dark body {
+  background: var(--background);
+  color: var(--foreground);
+}
+.dark .card {
+  background: #0f172a;
+  border-color: #1e293b;
+  box-shadow: none;
+}
+.dark .btn-ghost {
+  background: #0f172a;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+.dark .field {
+  background: #0f172a;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+.dark .field::placeholder {
+  color: #64748b;
+}
+
+::selection {
+  background: var(--color-brand-600);
+  color: #fff;
+}
+
+/* Themed scrollbar (craft-floor: browser surfaces carry the design) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #9db1c9 transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #9db1c9;
+  border-radius: 8px;
+  border: 2px solid var(--background);
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Visible keyboard focus everywhere */
+:focus-visible {
+  outline: 2px solid var(--color-brand-600);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Tabular numerals for references, counts, timestamps */
+.tnum,
+table,
+.stat-value {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Underline offset for links */
+a {
+  text-underline-offset: 3px;
+}
+
+/* Shared action styles */
+.btn-primary {
+  border-radius: 8px;
+  background: var(--color-brand-700);
+  color: #fff;
+  padding: 0.6rem 1rem;
+  font-weight: 600;
+  min-height: 44px;
+}
+.btn-primary:hover {
+  background: var(--color-brand-600);
+}
+.btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.btn-ghost {
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  padding: 0.55rem 0.9rem;
+  min-height: 44px;
+}
+.btn-ghost:hover {
+  border-color: var(--color-brand-600);
+  color: var(--color-brand-700);
+}
+
+.field {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  padding: 0.6rem 0.7rem;
+  min-height: 44px;
+}
+.field::placeholder {
+  color: #64748b;
+  opacity: 1;
+}
+
+.card {
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(23 34 47 / 0.06), 0 4px 14px -4px rgb(23 34 47 / 0.08);
+}
+
+.status-Pending { color: #92400e; background: #fef3c7; }
+.status-Approved, .status-In\ Transit { color: var(--color-brand-700); background: var(--color-brand-50); }
+.status-Completed, .status-Delivered { color: var(--color-ok-600); background: #dcfce7; }
+.status-Rejected, .status-Failed { color: var(--color-bad-600); background: #fee2e2; }
+.status-pill {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
