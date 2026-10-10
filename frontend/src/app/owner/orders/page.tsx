@@ -6,6 +6,7 @@ import { CancelOrderSection } from '@/components/CancelOrder';
 import { api } from '@/lib/supabase';
 import { Icons } from '@/lib/createLucideIcon';
 import { errorMessage, type Order, type OrderDetail } from '@/lib/types';
+import { PriorityBadge } from '@/components/PriorityBadge';
 
 const STATUSES = ['All', 'Pending', 'Approved', 'In Transit', 'Completed', 'Rejected', 'Cancelled'];
 
@@ -68,7 +69,7 @@ export default function OwnerOrdersPage() {
             <Icons.Search className="h-4 w-4 text-slate-400" />
           </div>
           <input
-            className="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-[#f5a623] focus:outline-none focus:ring-1 focus:ring-[#f5a623]"
+            className="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
             placeholder="Search reference…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -76,7 +77,7 @@ export default function OwnerOrdersPage() {
           />
         </div>
         <select
-          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-[#f5a623] focus:outline-none"
+          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none"
           value={status}
           onChange={(e) => setStatus(e.target.value)}
           aria-label="Filter by status"
@@ -93,6 +94,7 @@ export default function OwnerOrdersPage() {
               <tr>
                 <th className="px-6 py-3 font-semibold">Reference</th>
                 <th className="px-6 py-3 font-semibold">Status</th>
+                <th className="px-6 py-3 font-semibold">Priority</th>
                 <th className="px-6 py-3 font-semibold">Date</th>
                 <th className="px-6 py-3 font-semibold">Time</th>
                 <th className="px-6 py-3 font-semibold"><span className="sr-only">Details</span></th>
@@ -112,17 +114,20 @@ export default function OwnerOrdersPage() {
                       'bg-red-50 text-red-700'
                     }`}>{o.status}</span>
                     </td>
+                    <td className="px-6 py-3">
+                      <PriorityBadge priority={o.priority} />
+                    </td>
                     <td className="px-6 py-3 text-slate-600">{o.scheduledDate}</td>
                     <td className="px-6 py-3 text-slate-600">{o.scheduledTime}</td>
                     <td className="px-6 py-3 text-right">
-                      <button onClick={() => openDetail(o.orderId)} className="font-medium text-[#f5a623] hover:underline">
+                      <button onClick={() => openDetail(o.orderId)} className="font-medium text-[#0e7a70] hover:underline">
                         {detailId === o.orderId ? 'Hide' : 'Details'}
                       </button>
                     </td>
                   </tr>
                   {detailId === o.orderId && (
                     <tr>
-                      <td colSpan={5} className="bg-slate-50 px-6 py-4 text-sm">
+                      <td colSpan={6} className="bg-slate-50 px-6 py-4 text-sm">
                         {!detail ? (
                           <p className="text-slate-500">Loading…</p>
                         ) : 'error' in detail ? (
@@ -164,7 +169,7 @@ export default function OwnerOrdersPage() {
                 </Fragment>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={5} className="px-6 py-8 text-center text-slate-400">No orders match. Try a different search or filter.</td></tr>
+                <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-400">No orders match. Try a different search or filter.</td></tr>
               )}
             </tbody>
           </table>
@@ -244,7 +249,7 @@ function OwnerApprovalActions({ order, onDone }: { order: Order; onDone: () => v
       )}
       <div className="flex flex-col gap-3 sm:flex-row">
         <button onClick={approve} disabled={busy}
-          className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#f5a623] py-2.5 text-sm font-semibold text-white hover:bg-[#e69b1e] disabled:opacity-60">
+          className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#0e7a70] py-2.5 text-sm font-semibold text-white hover:bg-[#0b625a] disabled:opacity-60">
           <Icons.Check className="h-4 w-4" />{busy ? 'Working…' : 'Approve Order'}
         </button>
         <button onClick={() => setEditOpen((v) => !v)}
@@ -278,7 +283,7 @@ function OwnerApprovalActions({ order, onDone }: { order: Order; onDone: () => v
       <div className="mt-3">
         <label className="text-sm font-medium text-slate-700" htmlFor={`owner-reject-${order.orderId}`}>Rejection reason (required to reject)</label>
         <input id={`owner-reject-${order.orderId}`} value={reason} onChange={(e) => setReason(e.target.value)}
-          className="mt-1 block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#f5a623] focus:outline-none"
+          className="mt-1 block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none"
           placeholder="Type why this order is rejected…" />
         <button onClick={reject} disabled={busy}
           className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60">

@@ -6,16 +6,16 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
 
-  /* Brand: dispatch-navy + signal-amber. Light theme: bright dispatch office,
-     drivers outdoors in daylight — contrast first. */
+  /* Brand: dispatch-navy + signal-green (Maanahao Connect accent #0e7a70).
+     Light theme: bright dispatch office, drivers outdoors in daylight — contrast first. */
   --color-ink: #17222f;
   --color-brand-50: #eef4ff;
   --color-brand-100: #dce7fd;
   --color-brand-600: #1d4ed8;
   --color-brand-700: #1e40af;
   --color-brand-900: #1e2a4a;
-  --color-signal-400: #f5a623;
-  --color-signal-500: #e08e00;
+  --color-signal-400: #0e7a70;
+  --color-signal-500: #0b625a;
   --color-ok-600: #15803d;
   --color-bad-600: #b91c1c;
 }
@@ -46,6 +46,33 @@ body {
   background: var(--background);
   color: var(--foreground);
 }
+
+/* Dark-mode safety net: many pages use hardcoded light utilities
+   (bg-white, text-slate-900, …) without dark: variants. These overrides
+   keep every such page readable in dark mode. Intentionally scoped to
+   neutral slate surfaces/text only — brand green, white-on-color text,
+   and semantic status colors are never touched. */
+.dark .bg-white { background-color: #0f172a; }
+.dark .bg-slate-50 { background-color: #0f172a; }
+.dark .bg-slate-100 { background-color: #1e293b; }
+.dark .hover\:bg-slate-50:hover { background-color: #1e293b; }
+.dark .hover\:bg-slate-100:hover { background-color: #243145; }
+.dark .text-slate-900 { color: #f1f5f9; }
+.dark .text-slate-800 { color: #e2e8f0; }
+.dark .text-slate-700 { color: #cbd5e1; }
+.dark .text-slate-600 { color: #a8b6c7; }
+.dark .text-slate-500 { color: #93a1b5; }
+.dark .text-slate-400 { color: #7d8ca3; }
+.dark .border-slate-200 { border-color: #1e293b; }
+.dark .border-slate-100 { border-color: #1e293b; }
+.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) { border-color: #1e293b; }
+.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) { border-color: #243145; }
+.dark .ring-slate-200 { --tw-ring-color: #334155; }
+.dark input::placeholder { color: #64748b; opacity: 1; }
+.dark .bg-blue-50\/40 { background-color: rgb(30 58 138 / 0.35); }
+/* Brand-green text (links, active nav, badges) lightens in dark mode for
+   contrast. Solid green fills with white text are never touched. */
+.dark .text-\[\#0e7a70\] { color: #5eead4; }
 .dark .card {
   background: #0f172a;
   border-color: #1e293b;

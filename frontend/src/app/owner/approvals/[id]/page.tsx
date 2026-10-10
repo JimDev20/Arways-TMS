@@ -62,11 +62,12 @@ export default function OwnerApprovalDetailPage({ params }: { params: Promise<{ 
   }
 
   async function reject() {
-    if (!reason.trim()) { setMsg({ type: 'error', text: 'A rejection reason is required. Type why this order is rejected first.' }); return; }
+    const finalReason = reasonKind === 'Other' ? reason.trim() : reasonKind;
+    if (!finalReason) { setMsg({ type: 'error', text: 'A rejection reason is required. Pick a reason or type why this order is rejected first.' }); return; }
     setBusy(true);
     setMsg(null);
     try {
-      await api(`/orders/${id}/reject`, { method: 'PATCH', body: JSON.stringify({ reason: reason.trim() }) });
+      await api(`/orders/${id}/reject`, { method: 'PATCH', body: JSON.stringify({ reason: finalReason }) });
       setMsg({ type: 'success', text: 'Order rejected. The client was notified.' });
       load();
     } catch (e: unknown) {
@@ -100,6 +101,13 @@ export default function OwnerApprovalDetailPage({ params }: { params: Promise<{ 
       return c ? { ...c, label: `#${s.stopSequence} ${s.stopType} · ${s.locationAddress}` } : null;
     })
     .filter((p): p is MapPin => p !== null);
+
+  // UX #12: same pin status as Secretary detail (Approve disabled with count).
+  const missingPins = (detail?.stops ?? []).filter((s) => !coordsOf(s.locationCoordinates));
+  const missingNames = missingPins.map((s) => s.locationAddress).join(', ');
+
+  const REJECT_REASONS = ['Wrong dock', 'Truck unavailable', 'Incomplete pins', 'Other'] as const;
+  const [reasonKind, setReasonKind] = useState<string>('Wrong dock');
 
   // Dispatch area and pickup area are the same place: navigate to it
   // using the pickup stop's coordinates.
@@ -161,6 +169,9 @@ export default function OwnerApprovalDetailPage({ params }: { params: Promise<{ 
                 <li key={s.stopId} className="py-1.5 text-slate-700">#{s.stopSequence} {s.stopType} · {s.locationAddress} ({s.status})</li>
               ))}
             </ul>
+            {missingPins.length === 0
+              ? <p className="mt-2 text-xs text-green-700">All locations pinned.</p>
+              : <p className="mt-2 text-xs text-amber-700" role="alert">Missing pins: {missingNames}. Pin all locations before approving.</p>}
           </div>
 
           <div className="rounded-xl bg-white p-6 shadow-sm">
@@ -186,9 +197,10 @@ export default function OwnerApprovalDetailPage({ params }: { params: Promise<{ 
           <div className="rounded-xl bg-white p-6 shadow-sm">
             <h2 className="mb-3 text-base font-semibold text-slate-900">Owner Action</h2>
             <div className="flex flex-col gap-3 sm:flex-row">
-              <button onClick={approve} disabled={busy}
-                className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#f5a623] py-2.5 text-sm font-semibold text-white hover:bg-[#e69b1e] disabled:opacity-60">
-                <Icons.Check className="h-4 w-4" />{busy ? 'Working…' : 'Approve Order'}
+              <button onClick={approve} disabled={busy || missingPins.length > 0}
+                title={missingPins.length > 0 ? `${missingPins.length} pins missing: ${missingNames}` : undefined}
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#0e7a70] py-2.5 text-sm font-semibold text-white hover:bg-[#0b625a] disabled:opacity-60">
+                <Icons.Check className="h-4 w-4" />{busy ? 'Working…' : missingPins.length > 0 ? `Approve disabled (${missingPins.length} pins missing)` : 'Approve Order'}
               </button>
               <button onClick={() => setEditOpen((v) => !v)}
                 className="flex-1 rounded-lg border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
@@ -219,10 +231,20 @@ export default function OwnerApprovalDetailPage({ params }: { params: Promise<{ 
               </form>
             )}
             <div className="mt-4">
-              <label className="text-sm font-medium text-slate-700" htmlFor="reject-reason">Rejection reason (required to reject)</label>
-              <input id="reject-reason" value={reason} onChange={(e) => setReason(e.target.value)}
-                className="mt-1 block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#f5a623] focus:outline-none"
-                placeholder="Type why this order is rejected…" />
+              <label className="text-sm font-medium text-slate-700" htmlFor="reject-reason-kind">Rejection reason (required to reject)</label>
+              <select
+                id="reject-reason-kind"
+                value={reasonKind}
+                onChange={(e) => setReasonKind(e.target.value)}
+                className="mt-1 block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              >
+                {REJECT_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+              {reasonKind === 'Other' && (
+                <input id="reject-reason" value={reason} onChange={(e) => setReason(e.target.value)}
+                  className="mt-2 block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none"
+                  placeholder="Type why this order is rejected…" />
+              )}
               <button onClick={reject} disabled={busy}
                 className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60">
                 <Icons.X className="h-4 w-4" />{busy ? 'Working…' : 'Reject Order'}

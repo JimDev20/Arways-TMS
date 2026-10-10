@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { NAV, type NotificationItem, type Order, type Role, type RouteFull, type SessionUser, type TruckWithDriver, type UserRow } from '@/lib/types';
 import { api } from '@/lib/supabase';
 import { useRealtime } from '@/lib/realtime';
+import { centerHrefFor, notificationHref } from '@/lib/notifications';
 import { Icons } from '@/lib/createLucideIcon';
 import { useTheme } from '@/lib/theme';
 import { useStoredString } from '@/lib/storage';
@@ -61,6 +62,8 @@ const NAV_ICON: Record<string, (props: { className?: string }) => React.ReactEle
   'New Order': Icons.Plus,
   Track: Icons.MapPin,
   "Today's Route": Icons.Route,
+  Stops: Icons.Route,
+  Profile: Icons.User,
 };
 
 function ThemeToggle() {
@@ -71,7 +74,7 @@ function ThemeToggle() {
       suppressHydrationWarning
       aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
       title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-      className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-[#f5a623] dark:text-slate-300 dark:hover:bg-slate-800"
+      className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-[#0e7a70] dark:text-slate-300 dark:hover:bg-slate-800"
     >
       {theme === 'dark' ? <Icons.Sun className="h-5 w-5" /> : <Icons.Moon className="h-5 w-5" />}
     </button>
@@ -162,7 +165,7 @@ export function Shell({ role, title, children }: { role: Role; title: string; ch
             </div>
             <button
               onClick={logout}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#f5a623] focus:ring-offset-2 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+              className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0e7a70] focus:ring-offset-2 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
             >
               Logout
             </button>
@@ -194,7 +197,7 @@ export function Shell({ role, title, children }: { role: Role; title: string; ch
                             aria-current={active ? 'page' : undefined}
                             className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                               active
-                                ? 'bg-[#f5a623]/10 text-[#f5a623]'
+                                ? 'bg-[#0e7a70]/10 text-[#0e7a70]'
                                 : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'
                             }`}
                           >
@@ -243,7 +246,7 @@ export function Shell({ role, title, children }: { role: Role; title: string; ch
               {NAV[role].flatMap((g) => g.links).map((n) => (
                 <Link key={n.href} href={n.href} className={`rounded-lg px-4 py-2 text-sm font-medium ${
                   pathname === n.href
-                    ? 'bg-[#f5a623] text-white'
+                    ? 'bg-[#0e7a70] text-white'
                     : 'bg-white text-slate-600 ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700'
                 }`}>
                   {n.label}
@@ -267,20 +270,11 @@ export function Shell({ role, title, children }: { role: Role; title: string; ch
 const TOAST_LIFETIME_MS = 8000;
 const MAX_TOASTS = 4;
 
-function centerHrefFor(role: Role): string {
-  return role === 'Owner'
-    ? '/owner/notifications'
-    : role === 'Secretary'
-      ? '/secretary/notifications'
-      : role === 'Client'
-        ? '/client/notifications'
-        : '/driver/notifications';
-}
-
 /**
  * Stacked toast popups for newly arrived notifications.
- * Clicking a toast opens the notifications center and marks ONLY that
- * notification as read. Dismissing (X or timeout) leaves it unread.
+ * Clicking a toast opens the notification's own section (deep link) and
+ * marks ONLY that notification as read. Dismissing (X or timeout) leaves it
+ * unread.
  */
 function NotificationToasts({ role }: { role: Role }) {
   const router = useRouter();
@@ -332,12 +326,11 @@ function NotificationToasts({ role }: { role: Role }) {
     dismissToast(n.notificationId);
     // Navigate first, synchronously in the click handler, so a slow or
     // failing mark-read request can never block or swallow the navigation.
-    router.push(centerHrefFor(role));
+    router.push(notificationHref(n, role));
     // Then mark ONLY this notification as read in the background. The
-    // notifications center loads fresh on arrival, so it shows the read
-    // state even if this request is still in flight.
+    // destination page reloads live state on arrival anyway.
     api(`/notifications/${n.notificationId}/read`, { method: 'PATCH' }).catch(() => {
-      /* center page reloads live state anyway */
+      /* destination reloads live state anyway */
     });
   }
 
@@ -353,7 +346,7 @@ function NotificationToasts({ role }: { role: Role }) {
           <button
             onClick={() => openToast(n)}
             aria-label={`Open notification: ${n.message}`}
-            className="min-w-0 flex-1 text-left focus:outline-none focus:ring-2 focus:ring-[#f5a623]"
+            className="min-w-0 flex-1 text-left focus:outline-none focus:ring-2 focus:ring-[#0e7a70]"
           >
             <span className="block text-sm font-medium text-slate-900 dark:text-slate-100">{n.message}</span>
             <span className="mt-0.5 block text-xs text-slate-400">
@@ -363,7 +356,7 @@ function NotificationToasts({ role }: { role: Role }) {
           <button
             onClick={() => dismissToast(n.notificationId)}
             aria-label="Dismiss notification"
-            className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#f5a623] dark:hover:bg-slate-800"
+            className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0e7a70] dark:hover:bg-slate-800"
           >
             <Icons.X className="h-4 w-4" />
           </button>
@@ -376,7 +369,7 @@ function NotificationToasts({ role }: { role: Role }) {
 function BrandMark({ role }: { role: Role }) {
   return (
     <div className="flex items-center gap-3 py-2">
-      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#f5a623] text-white shadow-sm">
+      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0e7a70] text-white shadow-sm">
         <Icons.Logo className="h-6 w-6" />
       </div>
       <div>
@@ -391,12 +384,12 @@ function BrandMark({ role }: { role: Role }) {
  * Stat Card Component
  * 
  * Clean, minimal statistics display for dashboard pages.
- * Uses the brand color (#f5a623) for visual hierarchy.
+ * Uses the brand color (#0e7a70) for visual hierarchy.
  */
 export function Stat({ label, value, tone = 'slate' }: { label: string; value: string | number; tone?: 'slate' | 'amber' | 'blue' | 'green' }) {
   const colors = {
     slate: { bg: 'bg-slate-100', text: 'text-slate-600', border: 'border-slate-200' },
-    amber: { bg: 'bg-[#f5a623]/10', text: 'text-[#f5a623]', border: 'border-[#f5a623]/20' },
+    amber: { bg: 'bg-[#0e7a70]/10', text: 'text-[#0e7a70]', border: 'border-[#0e7a70]/20' },
     blue: { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-100' },
     green: { bg: 'bg-green-50', text: 'text-green-600', border: 'border-green-100' },
   }[tone];
@@ -436,35 +429,34 @@ export function NotificationBell() {
   useRealtime('notifications', load);
 
   const unread = items.filter((n) => !n.isRead);
-  function centerHref() {
+  /** Bell has no role prop: read the stored session (same source as useSession). */
+  function storedRole(): Role {
     try {
       const raw = localStorage.getItem('arways_user');
       const parsed: unknown = raw ? JSON.parse(raw) : null;
       const role = typeof parsed === 'object' && parsed !== null ? (parsed as { role?: unknown }).role : undefined;
-      return role === 'Secretary'
-        ? '/secretary/notifications'
-        : role === 'Client'
-          ? '/client/notifications'
-          : role === 'Driver'
-            ? '/driver/notifications'
-            : '/owner/notifications';
+      return role === 'Secretary' || role === 'Client' || role === 'Driver' ? role : 'Owner';
     } catch {
-      return '/owner/notifications';
+      return 'Owner';
     }
+  }
+  function centerHref() {
+    return centerHrefFor(storedRole());
   }
 
   function openNotification(id: string) {
+    const item = items.find((x) => x.notificationId === id);
     setOpen(false);
     // Navigate first so a slow mark-read can never block it. Clicking
-    // always opens the center, whether the item is read or unread.
-    router.push(centerHref());
+    // opens the notification's own section (deep link), read or unread.
+    router.push(item ? notificationHref(item, storedRole()) : centerHrefFor(storedRole()));
     // Then mark ONLY the clicked notification as read in the background.
     api(`/notifications/${id}/read`, { method: 'PATCH' })
       .then(() => {
         setItems((prev) => prev.map((n) => (n.notificationId === id ? { ...n, isRead: true } : n)));
       })
       .catch(() => {
-        /* center page reloads live state anyway */
+        /* destination reloads live state anyway */
       });
   }
 
@@ -481,7 +473,7 @@ export function NotificationBell() {
         onClick={() => setOpen((v) => !v)}
         aria-label={unread.length > 0 ? `${unread.length} unread notifications` : 'Notifications'}
         aria-expanded={open}
-        className="relative rounded-lg p-2 text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-[#f5a623] dark:text-slate-300 dark:hover:bg-slate-800"
+        className="relative rounded-lg p-2 text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-[#0e7a70] dark:text-slate-300 dark:hover:bg-slate-800"
       >
         <Icons.Bell className="h-5 w-5" />
         {unread.length > 0 && (
@@ -495,7 +487,7 @@ export function NotificationBell() {
           <div className="flex items-center justify-between border-b border-slate-100 px-4 py-2.5 dark:border-slate-800">
             <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Notifications</p>
             {unread.length > 0 && (
-              <button onClick={markAll} className="text-xs font-medium text-[#f5a623] hover:underline">
+              <button onClick={markAll} className="text-xs font-medium text-[#0e7a70] hover:underline">
                 Mark all read
               </button>
             )}

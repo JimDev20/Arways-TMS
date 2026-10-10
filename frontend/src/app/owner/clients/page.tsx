@@ -55,7 +55,7 @@ export default function OwnerClientsPage() {
 
   const set = (k: keyof typeof EMPTY) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm({ ...form, [k]: e.target.value });
-  const input = 'block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#f5a623] focus:outline-none focus:ring-1 focus:ring-[#f5a623]';
+  const input = 'block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]';
 
   const [q, setQ] = useState('');
   const filtered = clients.filter((c) =>
@@ -71,7 +71,7 @@ export default function OwnerClientsPage() {
             <Icons.Search className="h-4 w-4 text-slate-400" />
           </div>
           <input
-            className="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-[#f5a623] focus:outline-none focus:ring-1 focus:ring-[#f5a623]"
+            className="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
             placeholder="Search company, contact, email…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -158,7 +158,7 @@ export default function OwnerClientsPage() {
             <input className={input} value={form.dispatcherContact} onChange={set('dispatcherContact')} placeholder="Pedro Santos 09181234567" />
           </div>
           <button type="submit" disabled={busy}
-            className="w-full rounded-lg bg-[#f5a623] py-2.5 text-sm font-semibold text-white hover:bg-[#e69b1e] disabled:opacity-60 disabled:cursor-not-allowed">
+            className="w-full rounded-lg bg-[#0e7a70] py-2.5 text-sm font-semibold text-white hover:bg-[#0b625a] disabled:opacity-60 disabled:cursor-not-allowed">
             {busy ? 'Adding…' : 'Add Client'}
           </button>
         </form>

@@ -18,6 +18,8 @@ export default function MonitoringPage() {
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('All');
   const [driver, setDriver] = useState('All');
+  // UX #14: Needs attention chip — failed/stuck routes sort to the top.
+  const [attentionOnly, setAttentionOnly] = useState(false);
   const [err, setErr] = useState('');
   const load = useCallback(() => {
     api<RouteFull[]>('/routes').then((r) => {
@@ -39,12 +41,16 @@ export default function MonitoringPage() {
   useRealtime('stops', load);
 
   const drivers = [...new Set(routes.map((r) => r.driverName))].sort();
-  const filtered = routes.filter((r) => {
-    if (status !== 'All' && r.route.status !== status) return false;
-    if (driver !== 'All' && r.driverName !== driver) return false;
-    if (q && !`${r.route.routeNumber} ${r.orderReference} ${r.driverName} ${r.truckPlate}`.toLowerCase().includes(q.toLowerCase())) return false;
-    return true;
-  });
+  const needsAttention = (r: RouteFull) => r.stops.some((s) => s.status === 'Failed');
+  const filtered = routes
+    .filter((r) => {
+      if (status !== 'All' && r.route.status !== status) return false;
+      if (driver !== 'All' && r.driverName !== driver) return false;
+      if (attentionOnly && !needsAttention(r)) return false;
+      if (q && !`${r.route.routeNumber} ${r.orderReference} ${r.driverName} ${r.truckPlate}`.toLowerCase().includes(q.toLowerCase())) return false;
+      return true;
+    })
+    .sort((a, b) => Number(needsAttention(b)) - Number(needsAttention(a)));
 
   return (
     <Shell role="Secretary" title="Delivery Monitoring (live)">
@@ -54,7 +60,7 @@ export default function MonitoringPage() {
             <Icons.Search className="h-4 w-4 text-slate-400" />
           </div>
           <input
-            className="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-[#f5a623] focus:outline-none focus:ring-1 focus:ring-[#f5a623]"
+            className="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
             placeholder="Search route, order, driver, truck…"
             value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search routes"
           />
@@ -66,6 +72,13 @@ export default function MonitoringPage() {
           <option>All</option>
           {drivers.map((d) => <option key={d}>{d}</option>)}
         </select>
+        <button
+          onClick={() => setAttentionOnly((v) => !v)}
+          aria-pressed={attentionOnly}
+          className={`rounded-lg px-3 py-2 text-sm font-medium ${attentionOnly ? 'bg-red-600 text-white' : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+        >
+          Needs attention
+        </button>
         <span className="text-xs text-slate-500">{filtered.length} of {routes.length}</span>
       </div>
       {err && <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{err}</div>}
@@ -93,13 +106,13 @@ export default function MonitoringPage() {
                 <span>· Left: {r.route.dispatchedLeftAt ? String(r.route.dispatchedLeftAt).slice(11, 16) : '-'}</span>
                 {r.route.dispatchLeftPhotoUrl && (
                   <a href={r.route.dispatchLeftPhotoUrl} target="_blank" rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-slate-50">
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-slate-50 dark:text-blue-400">
                     <Icons.Proof className="h-3.5 w-3.5" />View waybill photo
                   </a>
                 )}
               </p>
               <div className="mt-3 h-2 overflow-hidden rounded bg-slate-100" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`${r.route.routeNumber} progress`}>
-                <span className="block h-full rounded bg-[#f5a623]" style={{ width: `${pct}%` }} />
+                <span className="block h-full rounded bg-[#0e7a70]" style={{ width: `${pct}%` }} />
               </div>
               <p className="mt-1 text-xs text-slate-500">Progress: {done}/{total} done</p>
               <ol className="mt-3 space-y-0">

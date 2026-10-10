@@ -36,7 +36,7 @@ export default function OwnerRoutesPage() {
             <Icons.Search className="h-4 w-4 text-slate-400" />
           </div>
           <input
-            className="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-[#f5a623] focus:outline-none focus:ring-1 focus:ring-[#f5a623]"
+            className="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
             placeholder="Search route, order, driver, truck…"
             value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search routes"
           />
@@ -62,7 +62,7 @@ export default function OwnerRoutesPage() {
                 }`}>{r.route.status}</span>
               </div>
               <div className="mt-2 h-2 overflow-hidden rounded bg-slate-100">
-                <span className="block h-full rounded bg-[#f5a623]" style={{ width: `${pct}%` }} />
+                <span className="block h-full rounded bg-[#0e7a70]" style={{ width: `${pct}%` }} />
               </div>
               <p className="mt-1 text-xs text-slate-500">{done}/{total} stops done · order {r.orderStatus}</p>
               <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
@@ -70,7 +70,7 @@ export default function OwnerRoutesPage() {
                 <span>· Left: {r.route.dispatchedLeftAt ? String(r.route.dispatchedLeftAt).slice(11, 16) : '-'}</span>
                 {r.route.dispatchLeftPhotoUrl && (
                   <a href={r.route.dispatchLeftPhotoUrl} target="_blank" rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-slate-50">
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-slate-50 dark:text-blue-400">
                     <Icons.Proof className="h-3.5 w-3.5" />View waybill photo
                   </a>
                 )}

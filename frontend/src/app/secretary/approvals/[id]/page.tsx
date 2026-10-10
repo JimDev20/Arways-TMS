@@ -7,7 +7,8 @@ import { CancelOrderSection } from '@/components/CancelOrder';
 import { coordsOf, navigateHref, type MapPin } from '@/lib/map';
 import { api } from '@/lib/supabase';
 import { Icons } from '@/lib/createLucideIcon';
-import { errorMessage, type OrderDetail } from '@/lib/types';
+import { errorMessage, type OrderDetail, type OrderPriority } from '@/lib/types';
+import { PriorityBadge } from '@/components/PriorityBadge';
 
 const MapView = dynamic(() => import('@/components/MapView').then((m) => m.MapView), { ssr: false });
 
@@ -18,10 +19,13 @@ export default function ApprovalDetailPage({ params }: { params: Promise<{ id: s
   const [err, setErr] = useState('');
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [reason, setReason] = useState('');
+  const [reasonKind, setReasonKind] = useState<string>('Wrong dock');
+  const REJECT_REASONS = ['Wrong dock', 'Truck unavailable', 'Incomplete pins', 'Other'] as const;
   const [busy, setBusy] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
+  const [priority, setPriority] = useState<OrderPriority>('Normal');
   const [notes, setNotes] = useState('');
 
   const load = useCallback(() => {
@@ -31,6 +35,7 @@ export default function ApprovalDetailPage({ params }: { params: Promise<{ id: s
         setErr('');
         setDate(d.order?.scheduledDate ?? '');
         setTime(d.order?.scheduledTime ?? '');
+        setPriority((d.order as { priority?: OrderPriority } | undefined)?.priority ?? 'Normal');
         setNotes(d.order?.specialInstructions ?? '');
       })
       .catch((e: unknown) => setErr(errorMessage(e, 'Could not load the order.')));
@@ -42,6 +47,7 @@ export default function ApprovalDetailPage({ params }: { params: Promise<{ id: s
         setErr('');
         setDate(d.order?.scheduledDate ?? '');
         setTime(d.order?.scheduledTime ?? '');
+        setPriority((d.order as { priority?: OrderPriority } | undefined)?.priority ?? 'Normal');
         setNotes(d.order?.specialInstructions ?? '');
       })
       .catch((e: unknown) => setErr(errorMessage(e, 'Could not load the order.')));
@@ -62,11 +68,12 @@ export default function ApprovalDetailPage({ params }: { params: Promise<{ id: s
   }
 
   async function reject() {
-    if (!reason.trim()) { setMsg({ type: 'error', text: 'A rejection reason is required. Type why this order is rejected first.' }); return; }
+    const finalReason = reasonKind === 'Other' ? reason.trim() : reasonKind;
+    if (!finalReason) { setMsg({ type: 'error', text: 'A rejection reason is required. Pick a reason or type why this order is rejected first.' }); return; }
     setBusy(true);
     setMsg(null);
     try {
-      await api(`/orders/${id}/reject`, { method: 'PATCH', body: JSON.stringify({ reason: reason.trim() }) });
+      await api(`/orders/${id}/reject`, { method: 'PATCH', body: JSON.stringify({ reason: finalReason }) });
       setMsg({ type: 'success', text: 'Order rejected. The client was notified.' });
       load();
     } catch (e: unknown) {
@@ -83,7 +90,7 @@ export default function ApprovalDetailPage({ params }: { params: Promise<{ id: s
     setBusy(true);
     setMsg(null);
     try {
-      await api(`/orders/${id}`, { method: 'PATCH', body: JSON.stringify({ scheduledDate: date, scheduledTime: time, specialInstructions: notes }) });
+      await api(`/orders/${id}`, { method: 'PATCH', body: JSON.stringify({ scheduledDate: date, scheduledTime: time, specialInstructions: notes, priority }) });
       setMsg({ type: 'success', text: 'Order updated. The new schedule applies immediately.' });
       setEditOpen(false);
       load();
@@ -141,6 +148,7 @@ export default function ApprovalDetailPage({ params }: { params: Promise<{ id: s
             <dl className="grid gap-2 text-sm sm:grid-cols-2">
               <div><dt className="text-slate-500">Reference</dt><dd className="font-medium">{detail.order.orderReference}</dd></div>
               <div><dt className="text-slate-500">Status</dt><dd className="font-medium">{detail.order.status}</dd></div>
+              <div><dt className="text-slate-500">Priority</dt><dd className="font-medium"><PriorityBadge priority={(detail.order as { priority?: OrderPriority }).priority} /></dd></div>
               <div><dt className="text-slate-500">Schedule</dt><dd className="font-medium">{detail.order.scheduledDate} at {detail.order.scheduledTime}</dd></div>
               <div><dt className="text-slate-500">Instructions</dt><dd className="font-medium">{detail.order.specialInstructions ?? '-'}</dd></div>
               <div>
@@ -198,7 +206,7 @@ export default function ApprovalDetailPage({ params }: { params: Promise<{ id: s
             <h2 className="mb-3 text-base font-semibold text-slate-900">Secretary Action</h2>
             <div className="flex flex-col gap-3 sm:flex-row">
               <button onClick={approve} disabled={busy}
-                className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#f5a623] py-2.5 text-sm font-semibold text-white hover:bg-[#e69b1e] disabled:opacity-60">
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#0e7a70] py-2.5 text-sm font-semibold text-white hover:bg-[#0b625a] disabled:opacity-60">
                 <Icons.Check className="h-4 w-4" />{busy ? 'Working…' : 'Approve Order'}
               </button>
               <button onClick={() => setEditOpen((v) => !v)}
@@ -217,6 +225,14 @@ export default function ApprovalDetailPage({ params }: { params: Promise<{ id: s
                     <input type="time" value={time} onChange={(e) => setTime(e.target.value)}
                       className="mt-1 block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" required />
                   </label>
+                  <label className="col-span-2 text-sm font-medium text-slate-700">Priority
+                    <select value={priority} onChange={(e) => setPriority(e.target.value as OrderPriority)}
+                      className="mt-1 block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" aria-label="Order priority">
+                      <option value="Normal">Normal</option>
+                      <option value="Urgent">Urgent</option>
+                      <option value="Rush">Rush</option>
+                    </select>
+                  </label>
                 </div>
                 <label className="text-sm font-medium text-slate-700">Special instructions
                   <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
@@ -230,10 +246,20 @@ export default function ApprovalDetailPage({ params }: { params: Promise<{ id: s
               </form>
             )}
             <div className="mt-4">
-              <label className="text-sm font-medium text-slate-700" htmlFor="reject-reason">Rejection reason (required to reject)</label>
-              <input id="reject-reason" value={reason} onChange={(e) => setReason(e.target.value)}
-                className="mt-1 block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#f5a623] focus:outline-none"
-                placeholder="Type why this order is rejected…" />
+              <label className="text-sm font-medium text-slate-700" htmlFor="reject-reason-kind">Rejection reason (required to reject)</label>
+              <select
+                id="reject-reason-kind"
+                value={reasonKind}
+                onChange={(e) => setReasonKind(e.target.value)}
+                className="mt-1 block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              >
+                {REJECT_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+              {reasonKind === 'Other' && (
+                <input id="reject-reason" value={reason} onChange={(e) => setReason(e.target.value)}
+                  className="mt-2 block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none"
+                  placeholder="Type why this order is rejected…" />
+              )}
               <button onClick={reject} disabled={busy}
                 className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60">
                 <Icons.X className="h-4 w-4" />{busy ? 'Working…' : 'Reject Order'}

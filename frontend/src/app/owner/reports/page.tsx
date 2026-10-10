@@ -26,10 +26,16 @@ export function Reports({ role }: { role: 'Owner' | 'Secretary' }) {
     setLoading(true);
     setErr('');
     const qs = `?from=${from}&to=${to}`;
+    // /users is Owner-only: secretaries skip it and fall back to short ids
+    // in the driver chart (nameOf handles missing entries). Fetching it
+    // anyway would 403 and fail the whole Promise.all below.
+    const usersReq = role === 'Owner'
+      ? api<UserRow[]>('/users')
+      : Promise.resolve([] as UserRow[]);
     Promise.all([
       api<ReportSummary>(`/reports/summary${qs}`),
       api<Order[]>('/orders'),
-      api<UserRow[]>('/users'),
+      usersReq,
       api<Record<string, number>>('/reports/by-driver'),
     ]).then(([s, o, u, bd]) => {
       setData(s);
@@ -39,13 +45,16 @@ export function Reports({ role }: { role: 'Owner' | 'Secretary' }) {
     }).catch((e: unknown) => {
       setErr(errorMessage(e, 'Could not load report data.'));
     }).finally(() => setLoading(false));
-  }, [from, to]);
+  }, [from, to, role]);
   useEffect(() => {
     const qs = `?from=${from}&to=${to}`;
+    const usersReq = role === 'Owner'
+      ? api<UserRow[]>('/users')
+      : Promise.resolve([] as UserRow[]);
     Promise.all([
       api<ReportSummary>(`/reports/summary${qs}`),
       api<Order[]>('/orders'),
-      api<UserRow[]>('/users'),
+      usersReq,
       api<Record<string, number>>('/reports/by-driver'),
     ]).then(([s, o, u, bd]) => {
       setData(s);
@@ -55,21 +64,22 @@ export function Reports({ role }: { role: 'Owner' | 'Secretary' }) {
     }).catch((e: unknown) => {
       setErr(errorMessage(e, 'Could not load report data.'));
     }).finally(() => setLoading(false));
-  }, [from, to]);
+  }, [from, to, role]);
 
   function exportPDF() {
     import('jspdf').then(({ jsPDF }) => {
       const doc = new jsPDF();
       doc.text('Arways TMS: Delivery Summary', 10, 15);
       doc.text(`Period: ${from} to ${to}`, 10, 22);
-      doc.text(`Total: ${data?.total ?? 0}  Delivered: ${data?.delivered ?? 0}  Failed: ${data?.failed ?? 0}  On-time: ${data?.onTimePct ?? 0}%`, 10, 29);
+      doc.text(`Total: ${data?.total ?? 0}  Delivered: ${data?.delivered ?? 0} (${data?.deliveryRatePct ?? 0}%)  Failed: ${data?.failed ?? 0}`, 10, 29);
+      doc.text(`On-time: ${data?.onTimePct ?? 0}% (judged ${data?.onTimeJudged ?? 0} orders with time windows)`, 10, 36);
       doc.save('arways-summary.pdf');
     });
   }
 
   function exportExcel() {
     import('xlsx').then((XLSX) => {
-      const ws = XLSX.utils.json_to_sheet([{ from, to, total: data?.total, delivered: data?.delivered, failed: data?.failed, onTimePct: data?.onTimePct }]);
+      const ws = XLSX.utils.json_to_sheet([{ from, to, total: data?.total, delivered: data?.delivered, deliveryRatePct: data?.deliveryRatePct, failed: data?.failed, onTimePct: data?.onTimePct, onTimeJudged: data?.onTimeJudged }]);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Summary');
       XLSX.writeFile(wb, 'arways-summary.xlsx');
@@ -96,11 +106,11 @@ export function Reports({ role }: { role: 'Owner' | 'Secretary' }) {
       <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl bg-white p-4 shadow-sm">
         <label className="text-sm font-medium text-slate-700">From
           <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
-            className="ml-2 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#f5a623] focus:outline-none" />
+            className="ml-2 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none" />
         </label>
         <label className="text-sm font-medium text-slate-700">To
           <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
-            className="ml-2 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#f5a623] focus:outline-none" />
+            className="ml-2 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none" />
         </label>
         <button onClick={load} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">Apply</button>
         <span className="text-xs text-slate-400">Summary, client and driver charts follow this range.</span>
@@ -134,13 +144,13 @@ export function Reports({ role }: { role: 'Owner' | 'Secretary' }) {
 
         {loading ? (
           <div className="flex flex-col items-center justify-center py-16">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-[#f5a623]" />
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-[#0e7a70]" />
             <p className="mt-4 text-sm text-slate-500">Loading report data...</p>
           </div>
         ) : err ? (
           <div className="flex flex-col items-center justify-center py-16 text-slate-400">
             <p className="mt-2 text-sm text-red-700" role="alert">{err}</p>
-            <button onClick={load} className="mt-3 text-sm font-medium text-[#f5a623] hover:underline">Retry</button>
+            <button onClick={load} className="mt-3 text-sm font-medium text-[#0e7a70] hover:underline">Retry</button>
           </div>
         ) : !data ? (
           <div className="flex flex-col items-center justify-center py-16 text-slate-400">
@@ -148,12 +158,16 @@ export function Reports({ role }: { role: 'Owner' | 'Secretary' }) {
           </div>
         ) : (
           <>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
               <StatCard label="Total Orders" value={data.total} tone="blue" />
               <StatCard label="Delivered" value={data.delivered} tone="green" />
               <StatCard label="Failed" value={data.failed} tone="red" />
-              <StatCard label="On-time Rate" value={`${data.onTimePct}%`} tone="amber" />
+              <StatCard label="Delivery Rate" value={`${data.deliveryRatePct ?? 0}%`} tone="green" />
+              <StatCard label="On-time Rate" value={data.onTimeJudged ? `${data.onTimePct}%` : '—'} tone="amber" />
             </div>
+            {data.onTimeJudged === 0 && (
+              <p className="mt-2 text-xs text-slate-400">On-time needs deliveries with store time windows — none in this period.</p>
+            )}
 
             <div className="mt-6 grid gap-6 lg:grid-cols-2">
               <div className="rounded-xl border border-slate-200 p-5">
@@ -166,7 +180,7 @@ export function Reports({ role }: { role: 'Owner' | 'Secretary' }) {
                       <li key={name} className="flex items-center gap-3 text-sm">
                         <span className="w-44 truncate text-slate-700">{name}</span>
                         <span className="h-2.5 flex-1 overflow-hidden rounded bg-slate-100">
-                          <span className="block h-full rounded bg-[#f5a623]" style={{ width: `${Math.round((n / maxBar) * 100)}%` }} />
+                          <span className="block h-full rounded bg-[#0e7a70]" style={{ width: `${Math.round((n / maxBar) * 100)}%` }} />
                         </span>
                         <span className="w-8 text-right font-semibold text-slate-900">{n}</span>
                       </li>

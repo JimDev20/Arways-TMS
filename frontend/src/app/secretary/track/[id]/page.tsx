@@ -3,7 +3,7 @@ import { use, useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { Shell } from '@/components/Shell';
-import { coordsOf, type MapPin } from '@/lib/map';
+import { coordsOf, phPinError, type MapPin } from '@/lib/map';
 import { api } from '@/lib/supabase';
 import { useRealtime } from '@/lib/realtime';
 import { Icons } from '@/lib/createLucideIcon';
@@ -50,6 +50,14 @@ export default function SecretaryTrackDetailPage({ params }: { params: Promise<{
     if (valid.length === 0) {
       setStoreMsg({ type: 'error', text: 'Add at least one store: type the address and tap the map to pin it.' });
       return;
+    }
+    // Philippines-only: fail fast before the backend 400.
+    for (let i = 0; i < valid.length; i++) {
+      const phErr = phPinError(`Store #${i + 1}`, valid[i].pin!.lat, valid[i].pin!.lon);
+      if (phErr) {
+        setStoreMsg({ type: 'error', text: phErr });
+        return;
+      }
     }
     if (!route) {
       setStoreMsg({ type: 'error', text: 'No route yet for this order.' });
@@ -109,7 +117,7 @@ export default function SecretaryTrackDetailPage({ params }: { params: Promise<{
             </dl>
             {waybillUrl && (
               <a href={waybillUrl} target="_blank" rel="noreferrer"
-                className="mt-3 inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-slate-50">
+                                  className="mt-3 inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-slate-50 dark:text-blue-400">
                 <Icons.Proof className="h-4 w-4" />View waybill photo
               </a>
             )}
@@ -155,7 +163,7 @@ export default function SecretaryTrackDetailPage({ params }: { params: Promise<{
                     className="text-xs font-medium text-red-600 hover:underline">Remove</button>
                 </div>
                 <input
-                  className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#f5a623] focus:outline-none"
+                  className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none"
                   placeholder="Puregold - Cubao, 789 Aurora Blvd, QC"
                   value={s.addr}
                   onChange={(e) => setStores(stores.map((x) => (x.id === s.id ? { ...x, addr: e.target.value } : x)))}
@@ -171,7 +179,7 @@ export default function SecretaryTrackDetailPage({ params }: { params: Promise<{
               </button>
               {stores.length > 0 && (
                 <button type="button" onClick={addStores} disabled={savingStores}
-                  className="rounded-lg bg-[#f5a623] px-4 py-2 text-sm font-semibold text-white hover:bg-[#e69b1e] disabled:opacity-60">
+                  className="rounded-lg bg-[#0e7a70] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b625a] disabled:opacity-60">
                   {savingStores ? 'Assigning…' : `Assign ${stores.filter((s) => s.addr.trim() && s.pin).length || ''} store(s) + notify driver`}
                 </button>
               )}

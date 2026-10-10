@@ -7,11 +7,39 @@ import { PostgresErrorFilter } from './common/postgres-error.filter.js';
 import { DB } from './db/db.module.js';
 
 async function bootstrap() {
+  // P0 #11: fail fast on weak/missing JWT_SECRET (never boot with demo secret in prod).
+  const jwtSecret = process.env.JWT_SECRET ?? '';
+  const isProd = process.env.NODE_ENV === 'production';
+  if (!jwtSecret || jwtSecret.length < 32) {
+    const msg =
+      '[startup] JWT_SECRET must be set to a long random string (>=32 chars). Refusing to boot.';
+    if (isProd) throw new Error(msg);
+    console.error(`${msg} (allowing in dev only)`);
+  }
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter({ logger: true }),
+    new FastifyAdapter({ logger: true, bodyLimit: 1024 * 1024 }),
   );
-  await app.register(fastifyCors, { origin: true, credentials: true });
+  // P1 hardening: exact frontend origin only (never origin:true with credentials).
+  // Set FRONTEND_URL in prod (e.g. https://app.arways.ph); dev falls back to localhost.
+  const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+  await app.register(fastifyCors, {
+    origin: [frontendUrl, 'http://localhost:3000', 'http://127.0.0.1:3000'],
+    credentials: true,
+  });
+  // Minimal security headers (helmet-equivalent for Fastify; no new dep).
+  // Fastify-native onRequest hook: the (req, res, next) Express signature
+  // does NOT work here (middie passes the raw Node response, which has
+  // setHeader, not header) — a wrong signature 500s every request.
+  const fastify = app.getHttpAdapter().getInstance() as unknown as {
+    addHook(name: string, fn: (...args: any[]) => void): void;
+  };
+  fastify.addHook('onRequest', (_req: any, reply: any, done: () => void) => {
+    reply.header('X-Content-Type-Options', 'nosniff');
+    reply.header('Referrer-Policy', 'no-referrer');
+    reply.header('X-Frame-Options', 'DENY');
+    done();
+  });
   // Tolerate empty JSON bodies (treat as {}): some clients declare
   // Content-Type: application/json while sending no payload (e.g. PATCH
   // approve/dispatch calls). Without this Fastify rejects them outright

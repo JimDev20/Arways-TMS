@@ -75,6 +75,7 @@ export default function OwnerSettingsPage() {
 
   return (
     <Shell role="Owner" title="System Settings">
+      <p className="mb-4 rounded-lg bg-amber-50 px-4 py-2.5 text-sm text-amber-800">Settings save to this browser only (localStorage) until the database settings table ships. Company profile below is the only card that affects the app today.</p>
       <div className="grid max-w-3xl gap-6">
         <Card title="Company profile">
           <div className="grid gap-3 sm:grid-cols-2">
@@ -126,16 +127,16 @@ export default function OwnerSettingsPage() {
         <Card title="Integrations">
           <ul className="space-y-2 text-sm">
             {[
-              ['Google Maps links', 'Connected', true],
-              ['Email (SMTP)', 'Connected', true],
-              ['SMS Gateway', 'Not connected', false],
-              ['Webhook', 'Not connected', false],
-            ].map(([name, status, ok]) => (
+              ['Google Maps links', 'Connected', true, false],
+              ['Email (SMTP)', 'Coming soon', false, true],
+              ['SMS Gateway', 'Coming soon', false, true],
+              ['Webhook', 'Coming soon', false, true],
+            ].map(([name, status, ok, soon]) => (
               <li key={name as string} className="flex items-center justify-between gap-3">
-                <span>{name}</span>
+                <span>{name} {soon === true && <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">Coming soon</span>}</span>
                 <span className="flex items-center gap-2">
                   <span className={`inline-flex items-center gap-1.5 ${ok ? 'text-green-700' : 'text-slate-400'}`}>{ok === true && <Icons.CheckCircle className="h-3.5 w-3.5" />}{status}</span>
-                  <button className="btn-ghost px-3 py-1 text-xs">Configure</button>
+                  <button className="btn-ghost px-3 py-1 text-xs" disabled={soon === true} title={soon === true ? 'Not built yet' : 'Configure'}>Configure</button>
                 </span>
               </li>
             ))}

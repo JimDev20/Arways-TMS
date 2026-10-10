@@ -1,5 +1,5 @@
 import { createBrowserClient } from '@supabase/ssr';
-import { messageFromBody } from '@/lib/errors';
+import { friendlyErrorMessage, messageFromBody } from '@/lib/errors';
 
 export function supabaseBrowser() {
   return createBrowserClient(
@@ -22,14 +22,21 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   // when content-type is set to 'application/json'"), which broke bodiless
   // PATCH calls like approve, dispatch arrived/left, and stop arrived.
   const sendsBody = init?.body !== undefined && init?.body !== null;
-  const res = await fetch(`${API_URL}${path}`, {
-    ...init,
-    headers: {
-      ...(sendsBody ? { 'Content-Type': 'application/json' } : {}),
-      ...authHeaders(),
-      ...(init?.headers ?? {}),
-    },
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      ...init,
+      headers: {
+        ...(sendsBody ? { 'Content-Type': 'application/json' } : {}),
+        ...authHeaders(),
+        ...(init?.headers ?? {}),
+      },
+    });
+  } catch (err: unknown) {
+    // Backend down / unreachable: map the raw TypeError to the same
+    // server-unreachable text the login page shows.
+    throw new Error(friendlyErrorMessage(err));
+  }
   if (res.status === 401) {
     if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
       localStorage.removeItem('arways_token');

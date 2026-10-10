@@ -30,7 +30,7 @@ export default function OwnerApprovalsPage() {
           <Icons.Search className="h-4 w-4 text-slate-400" />
         </div>
         <input
-          className="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-[#f5a623] focus:outline-none focus:ring-1 focus:ring-[#f5a623]"
+          className="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
           placeholder="Search reference or date…"
           value={q}
           onChange={(e) => setQ(e.target.value)}

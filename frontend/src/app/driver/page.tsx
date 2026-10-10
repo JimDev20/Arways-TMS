@@ -270,7 +270,7 @@ export default function DriverHome() {
 
       {/* Next stop prompt */}
       {!loading && !allDone && nextStop && (
-        <div className="mb-4 rounded-xl border-l-4 border-l-[#f5a623] bg-white p-4 shadow-sm">
+        <div className="mb-4 rounded-xl border-l-4 border-l-[#0e7a70] bg-white p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Next stop</p>
           <p className="mt-1 truncate text-sm font-medium text-slate-900">
             #{nextStop.stopSequence} {nextStop.locationAddress} ({nextStop.status})
@@ -394,7 +394,7 @@ export default function DriverHome() {
             <div key={route.routeId} className="rounded-xl bg-white p-6 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#f5a623]/10 text-[#f5a623]">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0e7a70]/10 text-[#0e7a70]">
                     <Icons.Map className="h-5 w-5" />
                   </div>
                   <div>
@@ -449,13 +449,13 @@ export default function DriverHome() {
                   <button
                     onClick={() => patch(`/routes/${route.routeId}/dispatch-arrived`, undefined, 'Arrival at dispatch recorded.')}
                     disabled={isSubmitting}
-                    className="rounded-lg bg-[#f5a623] px-4 py-2 text-sm font-semibold text-white hover:bg-[#e69b1e] disabled:opacity-60"
+                    className="rounded-lg bg-[#0e7a70] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b625a] disabled:opacity-60"
                   >
                     Arrived at dispatch
                   </button>
                   <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50">
                     {uploadingWaybillId === route.routeId ? (
-                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-slate-300 border-t-[#f5a623]" aria-hidden />
+                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-slate-300 border-t-[#0e7a70]" aria-hidden />
                     ) : waybillUrl ? (
                       <Icons.CheckCircle className="h-3.5 w-3.5 text-green-600" />
                     ) : (
@@ -474,18 +474,19 @@ export default function DriverHome() {
                   </label>
                   <button
                     onClick={() => leftDispatch(route.routeId, (route as { dispatchLeftPhotoUrl?: string | null }).dispatchLeftPhotoUrl)}
-                    disabled={uploadingWaybillId === route.routeId || leavingId === route.routeId}
+                    disabled={uploadingWaybillId === route.routeId || leavingId === route.routeId || !waybillUrl}
                     title={!waybillUrl ? 'Attach the waybill photo first' : route.dispatchedLeftAt ? 'Already left dispatch. Tap again to update' : 'Record departure with waybill photo'}
-                    className={`rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-60 ${waybillUrl ? 'bg-[#f5a623] text-white hover:bg-[#e69b1e]' : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}
+                    aria-disabled={!waybillUrl}
+                    className={`rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-60 ${waybillUrl ? 'bg-[#0e7a70] text-white hover:bg-[#0b625a]' : 'border border-slate-200 bg-white text-slate-400'}`}
                   >
                     {leavingId === route.routeId ? 'Recording…' : route.dispatchedLeftAt ? 'Left dispatch (update)' : 'Left dispatch'}
                   </button>
                 </div>
                 {!waybillUrl && (
-                  <p className="mt-2 text-xs text-amber-700">Attach the waybill/docs photo to enable “Left dispatch”.</p>
+                  <p className="mt-2 text-xs text-amber-700">Attach waybill photo first — Left dispatch stays disabled until the photo is attached.</p>
                 )}
                 {waybillUrl && (
-                  <a href={waybillUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs font-medium text-blue-700 hover:underline">
+                    <a href={waybillUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs font-medium text-blue-700 hover:underline dark:text-blue-400">
                     View attached waybill photo
                   </a>
                 )}
@@ -494,7 +495,7 @@ export default function DriverHome() {
               {/* Progress */}
               <div className="mb-4">
                 <div className="h-2 overflow-hidden rounded bg-slate-100" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`Route ${route.routeNumber} progress`}>
-                  <span className="block h-full rounded bg-[#f5a623]" style={{ width: `${pct}%` }} />
+                  <span className="block h-full rounded bg-[#0e7a70]" style={{ width: `${pct}%` }} />
                 </div>
                 <p className="mt-1 text-xs text-slate-500">Progress: {done}/{total} done{waitingForRoute ? ' · waiting for stores' : ''}</p>
               </div>
@@ -506,7 +507,7 @@ export default function DriverHome() {
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
-                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#f5a623] text-xs font-bold text-white">
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#0e7a70] text-xs font-bold text-white">
                             {s.stopSequence}
                           </span>
                           <span className="font-medium text-slate-900">{s.locationAddress}</span>
@@ -541,7 +542,7 @@ export default function DriverHome() {
                           </p>
                         )}
                         {s.status === 'Arrived' && s.arrivedAt && (
-                          <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-blue-700">
+                          <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-blue-700 dark:text-blue-400">
                             <Icons.CheckCircle className="h-3.5 w-3.5 shrink-0" />Arrived {fmtTime(s.arrivedAt)} · done
                           </p>
                         )}
@@ -596,7 +597,7 @@ export default function DriverHome() {
                         <p className="text-xs font-semibold text-slate-700">Finish this stop</p>
                         <label className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer">
                           {uploadingId === s.stopId ? (
-                            <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-slate-300 border-t-[#f5a623]" aria-hidden />
+                            <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-slate-300 border-t-[#0e7a70]" aria-hidden />
                           ) : receipts[s.stopId] ? (
                             <Icons.CheckCircle className="h-3.5 w-3.5 text-green-600" />
                           ) : (
@@ -614,7 +615,7 @@ export default function DriverHome() {
                           />
                         </label>
                         <input
-                          className="mt-2 block w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs focus:border-[#f5a623] focus:outline-none"
+                          className="mt-2 block w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs focus:border-[#0e7a70] focus:outline-none"
                           placeholder="Driver notes (optional, e.g. left with guard)"
                           value={notes[s.stopId] ?? ''}
                           onChange={(e) => setNotes((n) => ({ ...n, [s.stopId]: e.target.value }))}
@@ -622,7 +623,9 @@ export default function DriverHome() {
                         <div className="mt-2 flex flex-wrap gap-2">
                           <button
                             onClick={() => markDelivered(s)}
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || !receipts[s.stopId]}
+                            title={!receipts[s.stopId] ? 'Attach the receipt photo first' : 'Mark this stop delivered'}
+                            aria-disabled={!receipts[s.stopId]}
                             className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-60"
                           >
                             <Icons.Check className="h-3.5 w-3.5" />Mark Delivered
@@ -634,10 +637,27 @@ export default function DriverHome() {
                             <Icons.X className="h-3.5 w-3.5" />Mark Failed
                           </button>
                         </div>
+                        {!receipts[s.stopId] && (
+                          <p className="mt-1 text-xs text-amber-700">Attach receipt photo first — Delivered stays disabled until the photo is attached.</p>
+                        )}
                         {failFor === s.stopId && (
-                          <div className="mt-2 flex gap-2">
+                          <div className="mt-2 space-y-2">
+                            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Failure reason">
+                              {['Store closed', 'Wrong address', 'Refused', 'No one to receive', 'Other'].map((chip) => (
+                                <button
+                                  key={chip}
+                                  type="button"
+                                  onClick={() => setFailReason(chip === 'Other' ? '' : chip)}
+                                  aria-pressed={failReason === chip}
+                                  className={`rounded-full border px-2.5 py-1 text-xs font-medium ${failReason === chip ? 'border-red-600 bg-red-50 text-red-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+                                >
+                                  {chip}
+                                </button>
+                              ))}
+                            </div>
+                            <div className="flex gap-2">
                             <input
-                              className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs focus:border-[#f5a623] focus:outline-none"
+                              className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs focus:border-[#0e7a70] focus:outline-none"
                               placeholder="Why did delivery fail? (required)"
                               value={failReason}
                               onChange={(e) => setFailReason(e.target.value)}
@@ -650,6 +670,7 @@ export default function DriverHome() {
                             >
                               Confirm
                             </button>
+                            </div>
                           </div>
                         )}
                       </div>

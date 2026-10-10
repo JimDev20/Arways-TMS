@@ -12,6 +12,18 @@
  * - trucks.controller.ts / routes.controller.ts: 'Driver already linked to
  *   another truck', 'Route not found', 'Invalid status',
  *   'Proof-of-delivery photo required', 'Failure reason required'
+ *
+ * HCI feedback-form contract (Nielsen: error prevention first, then help
+ * users recognize, diagnose, and recover). Every message below follows it:
+ * WHAT happened (plain words, no codes or jargon) + WHY (which field,
+ * which rule, in user terms) + HOW to fix (exactly one concrete action).
+ * Polite, no blame ("re-type" never "you failed"). The caller must preserve
+ * the user's input on failure (never clear the form).
+ * Security boundary: server-side credential failures stay DELIBERATELY
+ * generic (one message for unknown email, wrong password, inactive
+ * account) so attackers cannot probe which emails exist. All specificity
+ * about credentials lives in client-side validation and system-status
+ * messages, which reveal nothing about any account.
  */
 
 /** Field names as users see them in the forms. */
@@ -84,7 +96,10 @@ function splitConstraint(item: string): [string, string] {
 /** Exact backend strings → specific message naming the problem + fix. */
 const EXACT: Record<string, string> = {
   'Invalid credentials':
-    'Wrong email or password. Neither matched an account. Re-type both carefully (passwords are case-sensitive).',
+    // Deliberately generic per the contract above: never split into
+    // "email not found" vs "wrong password" (account enumeration). Instead
+    // this names every check the user can run themselves.
+    'Those details did not match an account together. Check three things: the email spelling (name@example.com, no extra spaces), Caps Lock (passwords are case-sensitive), and that you are using the newest password. Then try again.',
   'Missing token': 'You are not logged in. Please log in first.',
   'Invalid or expired token':
     'Your login expired. Please log out and log in again.',
@@ -124,8 +139,8 @@ const EXACT: Record<string, string> = {
     'A reason is required when marking a stop Failed. Type the reason first.',
   'Rejection reason required':
     'A rejection reason is required. Type why the order is rejected first.',
-  'New password must be at least 8 characters long.':
-    'The new password must be at least 8 characters long. Type a longer password and try again.',
+  'New password must be 10–64 characters long.':
+    'The new password must be 10–64 characters long. Type a longer passphrase and try again.',
 };
 
 /**
@@ -154,14 +169,48 @@ export function emailHint(value: string): string {
  * Inline hint for a password field with a minimum length.
  * Empty string means the current value already satisfies the rule.
  */
-export function passwordHint(value: string, min = 8): string {
+export function passwordHint(value: string, min = 10): string {
   if (!value) return `Use at least ${min} characters.`;
   if (value.length < min) return `${value.length}/${min} characters. Keep typing.`;
   return '';
 }
 
+/**
+ * Login submit: the email shape is wrong. Fully client-side (no request is
+ * sent), so it reveals nothing about any account. Names the exact problem
+ * and the exact fix before the server is ever involved (error prevention).
+ */
+export function loginEmailShapeError(): string {
+  return 'That email address looks incomplete. It must look like name@example.com. Fix the spelling, then try again.';
+}
+
+/**
+ * Login password shorter than current policy. Guidance only, NEVER a
+ * submit blocker: accounts created before the 10-character rule may have
+ * shorter passwords, and blocking them would lock out real users. Names
+ * the rule and the fix (slow, careful re-type).
+ */
+export function shortPasswordGuidance(length: number): string {
+  return `Passwords are usually 10 or more characters (this entry has ${length}). Re-type it slowly to catch typos; passwords are case-sensitive.`;
+}
+
+/**
+ * Caps Lock is on while typing a password. Event-driven and fully
+ * client-side, so it reveals nothing about any account. This is the most
+ * common invisible cause of "correct password rejected".
+ */
+export function capsLockWarning(): string {
+  return 'Caps Lock is on. Passwords are case-sensitive, so turn Caps Lock off and re-type your password.';
+}
+
 export function friendlyErrorMessage(err: unknown): string {
   const raw = extractMessage(err);
+  // Network failure (backend down, wrong API URL, CORS block): the browser
+  // throws TypeError "Failed to fetch" with no status. Name the exact fix
+  // instead of showing the raw browser text.
+  if (/failed to fetch|networkerror|load failed|network request failed/i.test(raw)) {
+    return 'Cannot reach the server. Start the backend (`npm run start:dev` in `backend/`) and make sure it listens on http://localhost:4000/api, then try again.';
+  }
   if (EXACT[raw]) return EXACT[raw];
 
   // Server-side schema drift (missing migration column): tell the user it is

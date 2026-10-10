@@ -241,6 +241,7 @@ function kanbanStatus(o: Order, stops: StopRow[]): string {
   if (o.status === 'Approved') return 'Approved';
   if (o.status === 'Completed') return 'Delivered';
   if (o.status === 'Rejected') return 'Delivered';
+  if (o.status === 'Cancelled') return 'Cancelled';
   if (o.status === 'In Transit') {
     if (stops.some((s) => s.status === 'Arrived')) return 'Arrived';
     return 'In Transit';
@@ -248,21 +249,22 @@ function kanbanStatus(o: Order, stops: StopRow[]): string {
   return 'In Transit';
 }
 
-export function KanbanBoard({ orders, routes, onMove, query = '' }: { orders: Order[]; routes: RouteFull[]; onMove?: (order: Order) => void; query?: string }) {
+export function KanbanBoard({ orders, routes, onMove, query = '', showCancelled = false }: { orders: Order[]; routes: RouteFull[]; onMove?: (order: Order) => void; query?: string; showCancelled?: boolean }) {
   const stopsByOrder = useMemo(() => {
     const m = new Map<string, StopRow[]>();
     for (const r of routes) m.set(r.route.orderId, r.stops ?? []);
     return m;
   }, [routes]);
   const needle = query.trim().toLowerCase();
-  // Cancelled orders leave the pipeline: history lives in Audit Logs.
-  const active = orders.filter((o) => o.status !== 'Cancelled');
+  // UX #18: cancelled hidden by default (toggle shows them); history lives in Audit Logs.
+  const active = showCancelled ? orders : orders.filter((o) => o.status !== 'Cancelled');
   const scoped = needle
     ? active.filter((o) => `${o.orderReference} ${o.scheduledDate}`.toLowerCase().includes(needle))
     : active;
+  const cols = showCancelled ? [...KANBAN_COLS, 'Cancelled' as const] : KANBAN_COLS;
   return (
     <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-5">
-      {KANBAN_COLS.map((col) => {
+      {cols.map((col) => {
         const cards = scoped.filter((o) => kanbanStatus(o, stopsByOrder.get(o.orderId) ?? []) === col);
         return (
           <div key={col} className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/60">

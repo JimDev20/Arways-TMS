@@ -173,7 +173,7 @@ export default function FleetPage() {
             <Icons.Search className="h-4 w-4 text-slate-400" />
           </div>
           <input
-            className="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-[#f5a623] focus:outline-none focus:ring-1 focus:ring-[#f5a623]"
+            className="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
             placeholder="Search plate number…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -243,7 +243,7 @@ export default function FleetPage() {
                   <td className="px-6 py-3 text-right">
                     <button
                       onClick={() => { setSelectedId(selectedId === t.truckId ? '' : t.truckId); setErr(''); setOkMsg(''); }}
-                      className="font-medium text-[#f5a623] hover:underline"
+                      className="font-medium text-[#0e7a70] hover:underline"
                     >
                       {selectedId === t.truckId ? 'Hide' : 'Details'}
                     </button>
@@ -284,7 +284,7 @@ export default function FleetPage() {
           <form onSubmit={saveEdit} className="grid gap-4 max-w-lg">
             <div className="grid gap-2">
               <label className="block text-sm font-medium text-slate-700" htmlFor="edit-plate">Plate Number *</label>
-              <input id="edit-plate" aria-describedby="edit-plate-hint" className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#f5a623] focus:outline-none focus:ring-1 focus:ring-[#f5a623]"
+              <input id="edit-plate" aria-describedby="edit-plate-hint" className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
                 value={edit.plateNumber} onChange={(e) => setEdit({ ...edit, plateNumber: e.target.value })} required />
               <FieldHint id="edit-plate-hint" tone="hint">Type it exactly as printed on the plate, e.g. ABC 123.</FieldHint>
             </div>
@@ -331,7 +331,7 @@ export default function FleetPage() {
               </div>
             </div>
             <button type="submit" disabled={busy}
-              className="w-full rounded-lg bg-[#f5a623] py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#e69b1e] disabled:opacity-60 disabled:cursor-not-allowed">
+              className="w-full rounded-lg bg-[#0e7a70] py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#0b625a] disabled:opacity-60 disabled:cursor-not-allowed">
               {busy ? 'Saving…' : 'Save Changes'}
             </button>
           </form>
@@ -419,7 +419,7 @@ export default function FleetPage() {
             <label className="block text-sm font-medium text-slate-700">Plate Number *</label>
             <input
               aria-describedby="add-plate-hint"
-              className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#f5a623] focus:outline-none focus:ring-1 focus:ring-[#f5a623]"
+              className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
               placeholder="ABC 123"
               value={form.plateNumber}
               onChange={(e) => setForm({ ...form, plateNumber: e.target.value })}
@@ -431,7 +431,7 @@ export default function FleetPage() {
             <div className="grid gap-2">
               <label className="block text-sm font-medium text-slate-700">Truck Type</label>
               <select
-                className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#f5a623] focus:outline-none focus:ring-1 focus:ring-[#f5a623]"
+                className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
                 value={form.truckType}
                 onChange={(e) => setForm({ ...form, truckType: e.target.value })}
               >
@@ -443,7 +443,7 @@ export default function FleetPage() {
               <label className="block text-sm font-medium text-slate-700">Truck Size</label>
               <select
                 aria-describedby="add-size-hint"
-                className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#f5a623] focus:outline-none focus:ring-1 focus:ring-[#f5a623]"
+                className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
                 value={form.truckSize}
                 onChange={(e) => setForm({ ...form, truckSize: e.target.value as TruckSize })}
               >
@@ -458,7 +458,7 @@ export default function FleetPage() {
               type="number"
               min={1}
               aria-describedby="add-cap-hint"
-              className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#f5a623] focus:outline-none focus:ring-1 focus:ring-[#f5a623]"
+              className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
               value={form.capacityKg}
               onChange={(e) => setForm({ ...form, capacityKg: Number(e.target.value) })}
               required
@@ -470,7 +470,7 @@ export default function FleetPage() {
           <div className="grid gap-2">
             <label className="block text-sm font-medium text-slate-700">Assigned Driver (optional)</label>
             <select
-              className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#f5a623] focus:outline-none focus:ring-1 focus:ring-[#f5a623]"
+              className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
               value={form.assignedDriverId}
               onChange={(e) => setForm({ ...form, assignedDriverId: e.target.value })}
             >
@@ -482,7 +482,7 @@ export default function FleetPage() {
           <button
             type="submit"
             disabled={busy}
-            className="w-full rounded-lg bg-[#f5a623] py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#e69b1e] disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full rounded-lg bg-[#0e7a70] py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#0b625a] disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {busy ? 'Adding…' : 'Add Vehicle'}
           </button>

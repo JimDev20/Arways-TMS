@@ -16,7 +16,8 @@ export const SUPABASE = 'SUPABASE';
       inject: [ConfigService],
       useFactory: (config: ConfigService): PostgresJsDatabase<typeof schema> => {
         const url = config.get<string>('DATABASE_URL') ?? '';
-        const client = postgres(url, { max: 20 });
+        // P1 infra: Supabase transaction pooler requires prepare:false; small pool.
+        const client = postgres(url, { max: 10, prepare: false });
         return drizzle(client, { schema });
       },
     },

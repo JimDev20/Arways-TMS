@@ -5,7 +5,7 @@ export interface PlaceResult {
   lat: number;
   lon: number;
   label: string;
-  source: 'photon' | 'nominatim' | 'link';
+  source: 'photon' | 'nominatim' | 'local' | 'link';
 }
 
 export type ParsedLocation =
@@ -33,6 +33,13 @@ export function parseLocationInput(input: string): ParsedLocation {
       const lat = Number(bare[1]), lon = Number(bare[2]);
       if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
         return { kind: 'coords', lat, lon, label: `${lat}, ${lon}` };
+      }
+      // Likely lon,lat order pasted from GeoJSON/PostGIS (e.g. Maanahao is
+      // [123.9005784, 12.0550856] = lng,lat). If swapping makes a valid pair,
+      // say so instead of a bare range error.
+      const a = Number(bare[1]), b = Number(bare[2]);
+      if (b >= -90 && b <= 90 && a >= -180 && a <= 180) {
+        return { kind: 'unsupported', reason: `"${text}" looks like longitude,latitude order (latitude must be -90…90, but got ${bare[1]}). Try "${bare[2]}, ${bare[1]}" instead — for Maanahao, Masbate use 12.05509, 123.90058.` };
       }
       return { kind: 'unsupported', reason: `"${text}" is not a valid coordinate pair. Latitude must be -90…90, longitude -180…180.` };
     }
@@ -73,7 +80,7 @@ export function parseLocationInput(input: string): ParsedLocation {
   };
 }
 
-/** Searches places through the backend (free providers, PH-biased). */
+/** Searches places through the backend (Philippines-only, merged + ranked). */
 export async function searchPlaces(query: string): Promise<PlaceResult[]> {
   const body = await api<{ results: PlaceResult[] }>(`/geocode/search?q=${encodeURIComponent(query)}`);
   return body.results ?? [];

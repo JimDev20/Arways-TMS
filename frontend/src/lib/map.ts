@@ -28,3 +28,36 @@ export function coordsOf(c: unknown): { lat: number; lon: number } | null {
   }
   return null;
 }
+
+// ---- Philippines-only pins: single source of truth, mirrors backend ----
+// Backend validates lat 4–21 / lng 116–127, so every pin created here must
+// pass the same check or the submit will be rejected.
+export const PH_LAT_MIN = 4;
+export const PH_LAT_MAX = 21;
+export const PH_LON_MIN = 116;
+export const PH_LON_MAX = 127;
+
+export function inPH(lat: number, lon: number): boolean {
+  return (
+    Number.isFinite(lat) &&
+    Number.isFinite(lon) &&
+    lat >= PH_LAT_MIN &&
+    lat <= PH_LAT_MAX &&
+    lon >= PH_LON_MIN &&
+    lon <= PH_LON_MAX
+  );
+}
+
+/** True when swapping lat/lng would land inside PH (common paste/typing error). */
+export function looksSwappedPH(lat: number, lon: number): boolean {
+  return inPH(lon, lat) && !inPH(lat, lon);
+}
+
+/** Pre-submit guard message for a drop-off/store pin, or null when valid. */
+export function phPinError(label: string, lat: number, lon: number): string | null {
+  if (inPH(lat, lon)) return null;
+  if (looksSwappedPH(lat, lon)) {
+    return `${label} is outside the Philippines (got lat ${lat}, lng ${lon}). It looks like latitude and longitude are swapped — try lat ${lon}, lng ${lat} instead. For Maanahao, Masbate use lat 12.05509, lng 123.90058.`;
+  }
+  return `${label} is outside the Philippines (lat 4–21, lng 116–127). Move the pin inside the Philippines.`;
+}

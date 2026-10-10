@@ -1,9 +1,11 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Shell } from '@/components/Shell';
 import { api } from '@/lib/supabase';
 import { Icons } from '@/lib/createLucideIcon';
 import type { Order } from '@/lib/types';
+import { PriorityBadge } from '@/components/PriorityBadge';
 
 const STATUSES = ['All', 'Pending', 'Approved', 'In Transit', 'Completed', 'Rejected', 'Cancelled'];
 
@@ -29,7 +31,7 @@ export default function ClientOrders() {
             <Icons.Search className="h-4 w-4 text-slate-400" />
           </div>
           <input
-            className="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-[#f5a623] focus:outline-none focus:ring-1 focus:ring-[#f5a623]"
+            className="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
             placeholder="Search reference…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -37,7 +39,7 @@ export default function ClientOrders() {
           />
         </div>
         <select
-          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-[#f5a623] focus:outline-none"
+          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none"
           value={status}
           onChange={(e) => setStatus(e.target.value)}
           aria-label="Filter by status"
@@ -59,14 +61,18 @@ export default function ClientOrders() {
               <tr>
                 <th className="px-6 py-3 font-semibold">Reference</th>
                 <th className="px-6 py-3 font-semibold">Status</th>
+                <th className="px-6 py-3 font-semibold">Priority</th>
                 <th className="px-6 py-3 font-semibold">Date</th>
-                <th className="px-6 py-3 font-semibold">Reason</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filtered.map((o) => (
                 <tr key={o.orderId} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-6 py-3 font-medium text-slate-900">{o.orderReference}</td>
+                  <td className="px-6 py-3 font-medium text-slate-900">
+                    <Link href={`/client/track/${o.orderId}`} className="text-[#0e7a70] hover:underline" title="Open tracking timeline">
+                      {o.orderReference}
+                    </Link>
+                  </td>
                   <td className="px-6 py-3">
                     <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
                       o.status === 'Pending' ? 'bg-amber-50 text-amber-700' :
@@ -78,11 +84,16 @@ export default function ClientOrders() {
                     }`}>
                       {o.status}
                     </span>
+                    {o.rejectionReason && (
+                      <span className="mt-1 block max-w-56 truncate text-xs text-red-600" title={o.rejectionReason}>
+                        {o.rejectionReason}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-6 py-3">
+                    <PriorityBadge priority={o.priority} />
                   </td>
                   <td className="px-6 py-3 text-slate-600">{o.scheduledDate}</td>
-                  <td className="px-6 py-3 text-slate-500">
-                    {o.rejectionReason ? <span className="text-red-600">{o.rejectionReason}</span> : '-'}
-                  </td>
                 </tr>
               ))}
               {filtered.length === 0 && (

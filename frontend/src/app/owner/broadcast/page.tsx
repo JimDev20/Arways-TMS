@@ -59,7 +59,7 @@ export default function OwnerBroadcastPage() {
             <div className="grid gap-2">
               <label className="block text-sm font-medium text-slate-700" htmlFor="bc-audience">Audience *</label>
               <select id="bc-audience" value={audience} onChange={(e) => { setAudience(e.target.value); setConfirming(false); }}
-                className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#f5a623] focus:outline-none focus:ring-1 focus:ring-[#f5a623]">
+                className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]">
                 {AUDIENCES.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
               </select>
             </div>
@@ -68,13 +68,13 @@ export default function OwnerBroadcastPage() {
               <textarea id="bc-message" value={message} onChange={(e) => { setMessage(e.target.value); setConfirming(false); }} rows={3}
                 aria-describedby="bc-message-hint"
                 placeholder="Warehouse closed Friday. Plan pickups for Thursday."
-                className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#f5a623] focus:outline-none focus:ring-1 focus:ring-[#f5a623]" />
+                className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]" />
               <p id="bc-message-hint" className={`text-xs ${message.trim().length > 500 ? 'text-red-600' : 'text-slate-400'}`}>
                 {message.trim().length}/500 characters. Keep it to one fact and one action.
               </p>
             </div>
             <button type="submit" disabled={busy}
-              className={`rounded-lg py-2.5 text-sm font-semibold text-white disabled:opacity-60 ${confirming ? 'bg-red-600 hover:bg-red-700' : 'bg-[#f5a623] hover:bg-[#e69b1e]'}`}>
+              className={`rounded-lg py-2.5 text-sm font-semibold text-white disabled:opacity-60 ${confirming ? 'bg-red-600 hover:bg-red-700' : 'bg-[#0e7a70] hover:bg-[#0b625a]'}`}>
               {busy ? 'Sending…' : confirming ? 'Click again to confirm send' : 'Send Announcement'}
             </button>
           </form>

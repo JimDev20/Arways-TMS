@@ -35,8 +35,12 @@ export default function ClientReportsPage() {
 
   const total = scoped.length;
   const delivered = scoped.filter((o) => o.status === 'Completed').length;
-  const failed = scoped.filter((o) => o.status === 'Rejected').length;
-  const onTime = total ? Math.round((delivered / total) * 100) : 0;
+  // Roadmap #11: this page has no stop data, so "Failed" only ever counted
+  // Rejected orders — label it honestly and keep the by-status list truthful.
+  const rejected = scoped.filter((o) => o.status === 'Rejected').length;
+  // Honest label: without stop time-window data this page can only show the
+  // share delivered, not true on-time-vs-window performance (see Owner reports).
+  const deliveryRate = total ? Math.round((delivered / total) * 100) : 0;
 
   function exportCsv() {
     import('xlsx').then((XLSX) => {
@@ -57,10 +61,11 @@ export default function ClientReportsPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label="Total orders" value={total} tone="blue" />
-        <Stat label="Delivered" value={`${delivered} (${onTime}%)`} tone="green" />
-        <Stat label="Failed" value={failed} tone="amber" />
-        <Stat label="On-time rate" value={`${onTime}%`} tone="green" />
+        <Stat label="Delivered" value={`${delivered} (${deliveryRate}%)`} tone="green" />
+        <Stat label="Rejected orders" value={rejected} tone="amber" />
+        <Stat label="Delivery rate" value={`${deliveryRate}%`} tone="green" />
       </div>
+      <p className="mt-2 text-xs text-slate-400">Rejected counts orders the secretary declined. Failed delivery stops appear on the Track page per stop.</p>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <Card title="Delivery trend">

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Shell } from '@/components/Shell';
 import { api } from '@/lib/supabase';
 import { Icons } from '@/lib/createLucideIcon';
-import { errorMessage, type UserRow } from '@/lib/types';
+import { errorMessage, type ClientRow, type UserRow } from '@/lib/types';
 import { emailHint, isEmailLike, passwordHint } from '@/lib/errors';
 import { FieldHint } from '@/components/FieldHint';
 
@@ -11,7 +11,8 @@ const ROLE_FILTERS = ['All', 'Owner', 'Secretary', 'Client', 'Driver'];
 
 export default function UsersPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
-  const [form, setForm] = useState({ email: '', password: '', fullName: '', role: 'Driver' });
+  const [clients, setClients] = useState<ClientRow[]>([]);
+  const [form, setForm] = useState({ email: '', password: '', fullName: '', role: 'Driver', phone: '', licenseNo: '', clientId: '' });
   const [err, setErr] = useState('');
   const [okMsg, setOkMsg] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -28,6 +29,7 @@ export default function UsersPage() {
   }
   useEffect(() => {
     api<UserRow[]>('/users').then(setUsers).catch(() => {});
+    api<ClientRow[]>('/clients').then(setClients).catch(() => {});
   }, []);
 
   const filtered = users.filter((u) => {
@@ -44,16 +46,30 @@ export default function UsersPage() {
     if (!form.fullName.trim()) { setErr('Enter the member\u2019s full name.'); return; }
     if (!form.email.trim()) { setErr('Enter the member\u2019s email address.'); return; }
     if (!isEmailLike(form.email)) { setErr(`“${form.email.trim()}” does not look like an email. It must look like name@example.com.`); return; }
-    if (form.password.length < 8) { setErr(`Password is ${form.password.length}/8 characters. Type at least 8 characters.`); return; }
+    if (!form.phone.trim()) { setErr('Enter the member\u2019s contact number. Dispatch and drivers need it.'); return; }
+    if (!/^[+\d][\d\s\-()]{6,19}$/.test(form.phone.trim())) { setErr(`“${form.phone.trim()}” does not look like a phone number. Use 7–20 characters: digits, spaces, +, -.`); return; }
+    if (form.password.length < 10) { setErr(`Password is ${form.password.length}/10 characters. Type at least 10 characters (max 64).`); return; }
+    if (form.role === 'Client' && !form.clientId) { setErr('Pick the client company this login belongs to, so their orders and tracking link up.'); return; }
     setBusy(true);
     try {
       const created = await api<{ userId: string; email: string; fullName: string; role: string }>('/auth/register', {
         method: 'POST',
-        body: JSON.stringify({ ...form, email: form.email.trim(), fullName: form.fullName.trim() }),
+        body: JSON.stringify({
+          email: form.email.trim(),
+          password: form.password,
+          fullName: form.fullName.trim(),
+          role: form.role,
+          phone: form.phone.trim(),
+          licenseNo: form.role === 'Driver' && form.licenseNo.trim() ? form.licenseNo.trim() : undefined,
+          clientId: form.role === 'Client' ? form.clientId : undefined,
+        }),
       });
       await reload();
-      setOkMsg(`${created.fullName} (${created.email}) was added as ${created.role}. They can now log in.`);
-      setForm({ email: '', password: '', fullName: '', role: 'Driver' });
+      const extra = form.role === 'Client'
+        ? ` Linked to ${clients.find((c) => c.clientId === form.clientId)?.companyName ?? 'their company'}.`
+        : '';
+      setOkMsg(`${created.fullName} (${created.email}) was added as ${created.role}.${extra} They can now log in.`);
+      setForm({ email: '', password: '', fullName: '', role: 'Driver', phone: '', licenseNo: '', clientId: '' });
     } catch (e: unknown) {
       setErr(errorMessage(e, 'Could not create the user. Try again.'));
     }
@@ -87,7 +103,7 @@ export default function UsersPage() {
     e.preventDefault(); setErr(''); setOkMsg('');
     const target = users.find((u) => u.userId === resetId);
     if (!target) { setErr('Pick a team member first.'); return; }
-    if (newPw.length < 8) { setErr(`The new password for ${target.email} must be at least 8 characters long.`); return; }
+    if (newPw.length < 10) { setErr(`The new password for ${target.email} must be at least 10 characters long.`); return; }
     setBusy(true);
     try {
       await api(`/users/${target.userId}/password`, { method: 'PATCH', body: JSON.stringify({ password: newPw }) });
@@ -118,7 +134,7 @@ export default function UsersPage() {
             <Icons.Search className="h-4 w-4 text-slate-400" />
           </div>
           <input
-            className="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-[#f5a623] focus:outline-none focus:ring-1 focus:ring-[#f5a623]"
+            className="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
             placeholder="Search name or email…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -144,6 +160,7 @@ export default function UsersPage() {
               <tr>
                 <th className="px-6 py-3 font-semibold">Name</th>
                 <th className="px-6 py-3 font-semibold">Email</th>
+                <th className="px-6 py-3 font-semibold">Phone</th>
                 <th className="px-6 py-3 font-semibold">Role</th>
                 <th className="px-6 py-3 font-semibold">Status</th>
                 <th className="px-6 py-3 font-semibold"><span className="sr-only">Actions</span></th>
@@ -152,8 +169,12 @@ export default function UsersPage() {
             <tbody className="divide-y divide-slate-100">
               {filtered.map((u) => (
                 <tr key={u.userId} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-6 py-3 font-medium text-slate-900">{u.fullName}</td>
+                  <td className="px-6 py-3 font-medium text-slate-900">
+                    {u.fullName}
+                    {u.licenseNo && <span className="block text-xs font-normal text-slate-400">Lic: {u.licenseNo}</span>}
+                  </td>
                   <td className="px-6 py-3 text-slate-600">{u.email}</td>
+                  <td className="px-6 py-3 text-slate-600">{u.phone ?? <span className="text-slate-400">—</span>}</td>
                   <td className="px-6 py-3">
                     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
                       u.role === 'Owner' ? 'bg-amber-50 text-amber-700' :
@@ -183,7 +204,7 @@ export default function UsersPage() {
                     >
                       {u.status === 'Active' ? (confirmDeactivateId === u.userId ? 'Confirm deactivate?' : 'Deactivate') : 'Activate'}
                     </button>
-                    <button onClick={() => { setResetId(u.userId); setNewPw(''); setErr(''); setOkMsg(''); }} disabled={busy} className="font-medium text-[#f5a623] hover:underline disabled:opacity-60">
+                    <button onClick={() => { setResetId(u.userId); setNewPw(''); setErr(''); setOkMsg(''); }} disabled={busy} className="font-medium text-[#0e7a70] hover:underline disabled:opacity-60">
                       Reset password
                     </button>
                   </td>
@@ -191,7 +212,7 @@ export default function UsersPage() {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-slate-400">
+                  <td colSpan={6} className="px-6 py-8 text-center text-slate-400">
                     <div className="flex flex-col items-center gap-2">
                       <p>No users match. Try a different search or filter.</p>
                     </div>
@@ -205,10 +226,11 @@ export default function UsersPage() {
 
       {/* Add User Form */}
       <div className="mt-6 rounded-xl bg-white p-6 shadow-sm">
-        <div className="mb-4 flex items-center gap-2">
+        <div className="mb-2 flex items-center gap-2">
           <Icons.UserPlus className="h-5 w-5 text-slate-400" />
           <h2 className="text-lg font-semibold text-slate-900">Add Team Member</h2>
         </div>
+        <p className="mb-4 rounded-lg bg-amber-50 px-4 py-2.5 text-sm text-amber-800">Invite links ship with F1. Until then this form types a temporary 10+ character password — share it once, privately, and ask the person to change it. The Owner never reuses it.</p>
         {err && (
           <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center gap-2" role="alert">
             <Icons.AlertCircle className="h-5 w-5 shrink-0" />
@@ -225,7 +247,7 @@ export default function UsersPage() {
           <div className="grid gap-2">
             <label className="block text-sm font-medium text-slate-700" htmlFor="new-user-name">Full Name *</label>
             <input id="new-user-name"
-              className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#f5a623] focus:outline-none focus:ring-1 focus:ring-[#f5a623]"
+              className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
               placeholder="John Doe"
               value={form.fullName}
               onChange={(e) => setForm({ ...form, fullName: e.target.value })}
@@ -237,7 +259,7 @@ export default function UsersPage() {
             <input id="new-user-email"
               type="email"
               aria-describedby={emailHint(form.email) ? 'new-user-email-hint' : undefined}
-              className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#f5a623] focus:outline-none focus:ring-1 focus:ring-[#f5a623]"
+              className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
               placeholder="john@example.com"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -246,14 +268,26 @@ export default function UsersPage() {
             {emailHint(form.email) && <FieldHint id="new-user-email-hint" tone="error">{emailHint(form.email)}</FieldHint>}
           </div>
           <div className="grid gap-2">
-            <label className="block text-sm font-medium text-slate-700" htmlFor="new-user-password">Password (min 8 characters) *</label>
+            <label className="block text-sm font-medium text-slate-700" htmlFor="new-user-phone">Contact Number *</label>
+            <input id="new-user-phone"
+              type="tel"
+              autoComplete="tel"
+              className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
+              placeholder="0917 123 4567"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              required
+            />
+          </div>
+          <div className="grid gap-2">
+            <label className="block text-sm font-medium text-slate-700" htmlFor="new-user-password">Password (min 10 characters) *</label>
             <div className="relative">
               <input
                 id="new-user-password"
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="new-password"
                 aria-describedby="new-user-password-hint"
-                className="block w-full rounded-lg border border-slate-200 px-3 py-2 pr-11 text-sm focus:border-[#f5a623] focus:outline-none focus:ring-1 focus:ring-[#f5a623]"
+                className="block w-full rounded-lg border border-slate-200 px-3 py-2 pr-11 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
                 placeholder="••••••••"
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
@@ -265,19 +299,19 @@ export default function UsersPage() {
                 onClick={() => setShowPassword((v) => !v)}
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
                 aria-pressed={showPassword}
-                className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#f5a623] focus:ring-offset-1 rounded"
+                className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0e7a70] focus:ring-offset-1 rounded"
               >
                 {showPassword ? <Icons.EyeOff className="h-4 w-4" /> : <Icons.Eye className="h-4 w-4" />}
               </button>
             </div>
             <FieldHint id="new-user-password-hint" tone={form.password && form.password.length < 8 ? 'error' : 'hint'}>
-              {form.password ? (passwordHint(form.password) || 'Meets the 8-character rule.') : 'Use at least 8 characters. Share it with the new member so they can log in.'}
+              {form.password ? (passwordHint(form.password) || 'Meets the 10-character rule.') : 'Use at least 10 characters. Share it once, privately, so they can log in.'}
             </FieldHint>
           </div>
           <div className="grid gap-2">
             <label className="block text-sm font-medium text-slate-700" htmlFor="new-user-role">Role</label>
             <select id="new-user-role"
-              className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#f5a623] focus:outline-none focus:ring-1 focus:ring-[#f5a623]"
+              className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
               value={form.role}
               onChange={(e) => setForm({ ...form, role: e.target.value })}
             >
@@ -287,10 +321,42 @@ export default function UsersPage() {
               <option value="Driver">Driver</option>
             </select>
           </div>
+          {form.role === 'Driver' && (
+            <div className="grid gap-2">
+              <label className="block text-sm font-medium text-slate-700" htmlFor="new-user-license">Driver&apos;s License No. <span className="font-normal text-slate-400">(optional)</span></label>
+              <input id="new-user-license"
+                className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
+                placeholder="N01-23-456789"
+                value={form.licenseNo}
+                onChange={(e) => setForm({ ...form, licenseNo: e.target.value })}
+              />
+            </div>
+          )}
+          {form.role === 'Client' && (
+            <div className="grid gap-2">
+              <label className="block text-sm font-medium text-slate-700" htmlFor="new-user-client">Client Company *</label>
+              <select id="new-user-client"
+                className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
+                value={form.clientId}
+                onChange={(e) => setForm({ ...form, clientId: e.target.value })}
+                required
+              >
+                <option value="">Choose a company…</option>
+                {clients.map((c) => (
+                  <option key={c.clientId} value={c.clientId}>{c.companyName} ({c.email})</option>
+                ))}
+              </select>
+              <p className="text-xs text-slate-400">
+                {clients.length === 0
+                  ? 'No client companies yet. Add the company on the Clients page first.'
+                  : 'Links this login so their orders and tracking connect automatically.'}
+              </p>
+            </div>
+          )}
           <button
             type="submit"
             disabled={busy}
-            className="w-full rounded-lg bg-[#f5a623] py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#e69b1e] disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full rounded-lg bg-[#0e7a70] py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#0b625a] disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {busy ? 'Creating…' : 'Create User'}
           </button>
@@ -308,20 +374,20 @@ export default function UsersPage() {
           </div>
           <form onSubmit={resetPassword} className="grid gap-4 max-w-lg">
             <div className="grid gap-2">
-              <label className="block text-sm font-medium text-slate-700" htmlFor="reset-pw">New password (min 8 characters) *</label>
+              <label className="block text-sm font-medium text-slate-700" htmlFor="reset-pw">New password (min 10 characters) *</label>
               <div className="relative">
                 <input id="reset-pw"
                   type={showNewPw ? 'text' : 'password'}
                   autoComplete="new-password"
                   aria-describedby="reset-pw-hint"
-                  className="block w-full rounded-lg border border-slate-200 px-3 py-2 pr-11 text-sm focus:border-[#f5a623] focus:outline-none focus:ring-1 focus:ring-[#f5a623]"
+                  className="block w-full rounded-lg border border-slate-200 px-3 py-2 pr-11 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
                   placeholder="••••••••"
                   value={newPw}
                   onChange={(e) => setNewPw(e.target.value)}
                   required minLength={8}
                 />
-                <FieldHint id="reset-pw-hint" tone={newPw && newPw.length < 8 ? 'error' : 'hint'}>
-                  {newPw ? (passwordHint(newPw) || 'Meets the 8-character rule.') : 'Use at least 8 characters. The member logs in with this password next time.'}
+                <FieldHint id="reset-pw-hint" tone={newPw && newPw.length < 10 ? 'error' : 'hint'}>
+                  {newPw ? (passwordHint(newPw) || 'Meets the 10-character rule.') : 'Use at least 10 characters. The member logs in with this password next time.'}
                 </FieldHint>
                 <button type="button" onClick={() => setShowNewPw((v) => !v)}
                   aria-label={showNewPw ? 'Hide password' : 'Show password'}
@@ -333,7 +399,7 @@ export default function UsersPage() {
             </div>
             <div className="flex gap-2">
               <button type="submit" disabled={busy}
-                className="rounded-lg bg-[#f5a623] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#e69b1e] disabled:opacity-60">
+                className="rounded-lg bg-[#0e7a70] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#0b625a] disabled:opacity-60">
                 {busy ? 'Resetting…' : 'Reset Password'}
               </button>
               <button type="button" onClick={() => { setResetId(''); setNewPw(''); }}

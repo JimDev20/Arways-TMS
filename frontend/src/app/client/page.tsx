@@ -56,7 +56,7 @@ export default function ClientDashboard() {
       </div>
 
       <Link href="/client/new"
-        className="mt-6 flex items-center justify-center gap-2 rounded-xl bg-[#f5a623] py-4 text-base font-semibold text-white shadow-md shadow-[#f5a623]/20 transition-all hover:bg-[#e69b1e]">
+        className="mt-6 flex items-center justify-center gap-2 rounded-xl bg-[#0e7a70] py-4 text-base font-semibold text-white shadow-md shadow-[#0e7a70]/20 transition-all hover:bg-[#0b625a]">
         <Icons.Plus className="h-5 w-5" />
         Create New Order
       </Link>
@@ -71,7 +71,7 @@ export default function ClientDashboard() {
             </div>
             <Link
               href="/client/new"
-              className="inline-flex items-center gap-2 rounded-lg bg-[#f5a623] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#e69b1e]"
+              className="inline-flex items-center gap-2 rounded-lg bg-[#0e7a70] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#0b625a]"
             >
               <Icons.Plus className="h-4 w-4" />
               New Order
@@ -107,7 +107,7 @@ export default function ClientDashboard() {
                   <td className="px-6 py-3">
                     <Link
                       href={`/client/track/${o.orderId}`}
-                      className="inline-flex items-center gap-1 text-[#f5a623] font-medium hover:underline"
+                      className="inline-flex items-center gap-1 text-[#0e7a70] font-medium hover:underline"
                     >
                       Track <Icons.ChevronRight className="h-3 w-3" />
                     </Link>

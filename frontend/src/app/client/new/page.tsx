@@ -5,8 +5,8 @@ import { Shell } from '@/components/Shell';
 import { DriverBadge } from '@/components/DriverBadge';
 import { api } from '@/lib/supabase';
 import { Icons } from '@/lib/createLucideIcon';
-import { errorMessage, gmapsUrl, type ClientRow, type Order, type RouteRow, type SessionUser, type TruckWithDriver } from '@/lib/types';
-import { coordsOf } from '@/lib/map';
+import { errorMessage, gmapsUrl, type ClientRow, type Order, type OrderPriority, type RouteRow, type SessionUser, type TruckWithDriver } from '@/lib/types';
+import { coordsOf, phPinError } from '@/lib/map';
 
 const MapPicker = dynamic(() => import('@/components/MapPicker'), { ssr: false });
 
@@ -25,6 +25,7 @@ export default function NewOrderPage() {
     { id: 'drop-0', addr: 'SM City QC', pin: null },
   ]);
   const [truckId, setTruckId] = useState('');
+  const [priority, setPriority] = useState<OrderPriority>('Normal');
   const [notes, setNotes] = useState('');
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -77,10 +78,14 @@ export default function NewOrderPage() {
       if (!profile) return fail('Client profile not found for this account. Ask an Owner to link your login to a client company first.');
       if (!dispatchPin) return fail('Dispatch area has no map coordinates. Ask an Owner to pin the dispatch area on the client company first.');
       // Drop-offs are optional: client may dispatch pickup-only and assign stores later.
+      // Philippines-only: every pin must pass the same lat 4–21 / lng 116–127
+      // rule the backend enforces, so a foreign/swapped pin fails here fast.
       for (let i = 0; i < drops.length; i++) {
         if (!drops[i].addr.trim() && !drops[i].pin) continue;
         if (!drops[i].addr.trim()) return fail(`Drop-off #${i + 1} address is empty. Type where the goods go or remove it.`);
         if (!drops[i].pin) return fail(`Drop-off #${i + 1} is not pinned. Tap its map to drop the delivery pin or remove it.`);
+        const phErr = phPinError(`Drop-off #${i + 1}`, drops[i].pin!.lat, drops[i].pin!.lon);
+        if (phErr) return fail(phErr);
       }
       if (trucks.length > 0 && !truckId) return fail('No truck selected. Choose one of the available trucks below.');
       if (trucks.length === 0) return fail('There are no available trucks right now. Try again later or ask dispatch for help.');
@@ -97,7 +102,7 @@ export default function NewOrderPage() {
         method: 'POST',
         body: JSON.stringify({
           orderReference: ref.trim(), clientId: user.userId ?? null, truckId,
-          scheduledDate: date, scheduledTime: time, specialInstructions: notes.trim() || undefined,
+          scheduledDate: date, scheduledTime: time, specialInstructions: notes.trim() || undefined, priority,
           pickup: { address: profile.dispatchAreaAddress, ...dispatchPin },
           dropoffs: drops.filter((d) => d.addr.trim() && d.pin).map((d) => ({ address: d.addr.trim(), ...d.pin! })),
         }),
@@ -125,11 +130,11 @@ export default function NewOrderPage() {
 
         <form onSubmit={submit} className="space-y-6">
           {/* Basic Info */}
-          <div className="grid gap-4 rounded-lg border border-slate-200 p-5 sm:grid-cols-3">
+          <div className="grid gap-4 rounded-lg border border-slate-200 p-5 sm:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-slate-700">Order Reference *</label>
               <input
-                className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#f5a623] focus:outline-none focus:ring-1 focus:ring-[#f5a623]"
+                className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
                 value={ref}
                 onChange={(e) => setRef(e.target.value)}
                 required
@@ -139,7 +144,7 @@ export default function NewOrderPage() {
               <label className="block text-sm font-medium text-slate-700">Scheduled Date *</label>
               <input
                 type="date"
-                className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#f5a623] focus:outline-none focus:ring-1 focus:ring-[#f5a623]"
+                className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 required
@@ -149,11 +154,24 @@ export default function NewOrderPage() {
               <label className="block text-sm font-medium text-slate-700">Scheduled Time *</label>
               <input
                 type="time"
-                className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#f5a623] focus:outline-none focus:ring-1 focus:ring-[#f5a623]"
+                className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
                 required
               />
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-slate-700">Priority</label>
+              <select
+                className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
+                value={priority}
+                onChange={(e) => setPriority(e.target.value as OrderPriority)}
+                aria-label="Order priority"
+              >
+                <option value="Normal">Normal</option>
+                <option value="Urgent">Urgent</option>
+                <option value="Rush">Rush</option>
+              </select>
             </div>
           </div>
 
@@ -201,7 +219,7 @@ export default function NewOrderPage() {
               <div className="space-y-1.5">
                 <label className="block text-sm font-medium text-slate-700">Drop-off Address</label>
                 <input
-                  className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#f5a623] focus:outline-none focus:ring-1 focus:ring-[#f5a623]"
+                  className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
                   value={d.addr}
                   onChange={(e) => setDrops(drops.map((x) => (x.id === d.id ? { ...x, addr: e.target.value } : x)))}
                 />
@@ -227,7 +245,7 @@ export default function NewOrderPage() {
                     name="truck"
                     checked={truckId === t.truckId}
                     onChange={() => setTruckId(t.truckId)}
-                    className="h-4 w-4 text-[#f5a623] focus:ring-[#f5a623]"
+                    className="h-4 w-4 text-[#0e7a70] focus:ring-[#0e7a70]"
                   />
                   <div className="flex-1">
                     <div className="font-medium text-slate-900">{t.plateNumber}</div>
@@ -241,7 +259,10 @@ export default function NewOrderPage() {
                 </label>
               ))}
               {!trucks.length && (
-                <p className="text-center text-sm text-slate-400">No available trucks</p>
+                <div className="py-4 text-center">
+                  <p className="text-sm text-slate-400">No available trucks right now.</p>
+                  <a href="tel:+639171234567" className="btn-ghost mt-2 inline-flex items-center gap-2 text-sm">Call dispatch</a>
+                </div>
               )}
             </div>
           </div>
@@ -250,7 +271,7 @@ export default function NewOrderPage() {
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-slate-700">Special Instructions (optional)</label>
             <textarea
-              className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#f5a623] focus:outline-none focus:ring-1 focus:ring-[#f5a623]"
+              className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
@@ -271,7 +292,7 @@ export default function NewOrderPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full rounded-lg bg-[#f5a623] py-3 text-sm font-semibold text-white shadow-md shadow-[#f5a623]/20 transition-all hover:bg-[#e69b1e] focus:outline-none focus:ring-2 focus:ring-[#f5a623] focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full rounded-lg bg-[#0e7a70] py-3 text-sm font-semibold text-white shadow-md shadow-[#0e7a70]/20 transition-all hover:bg-[#0b625a] focus:outline-none focus:ring-2 focus:ring-[#0e7a70] focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {isSubmitting ? 'Submitting...' : 'Submit for Approval'}
           </button>

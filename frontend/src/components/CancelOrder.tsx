@@ -65,7 +65,7 @@ export function CancelOrderSection({
         id={`cancel-reason-${orderId}`}
         value={reason}
         onChange={(e) => { setReason(e.target.value); setConfirming(false); }}
-        className="mt-1 block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#f5a623] focus:outline-none"
+        className="mt-1 block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none"
         placeholder="Type why this order is cancelled…"
       />
       <button

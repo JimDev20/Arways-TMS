@@ -15,6 +15,15 @@ export class PostgresErrorFilter implements ExceptionFilter {
 
     const code = (exception as { code?: unknown })?.code;
     if (code === '42703') {
+      // Security Playbook: never print column names to clients in production.
+      if (process.env.NODE_ENV === 'production') {
+        const body = {
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+          message: 'Internal server error',
+        };
+        res.status(HttpStatus.INTERNAL_SERVER_ERROR).send(body);
+        return;
+      }
       const detail =
         exception instanceof Error ? exception.message : 'undefined_column';
       const column = /column "([^"]+)"/.exec(detail)?.[1] ?? 'a required column';

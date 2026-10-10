@@ -1,9 +1,11 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Shell } from '@/components/Shell';
 import { Card, Empty, StatusDot, type DotColor } from '@/components/saas';
 import { api } from '@/lib/supabase';
 import { useRealtime } from '@/lib/realtime';
+import { notificationHref } from '@/lib/notifications';
 import type { NotificationItem, Role } from '@/lib/types';
 
 const KIND: { match: RegExp; color: DotColor; label: string }[] = [
@@ -22,7 +24,9 @@ function kindOf(message: string): { color: DotColor; label: string } {
 }
 
 /** Wireframe 2.7: full-page notification center (all roles). */
+/** Every row is clickable and opens the notification's own section. */
 export function NotificationsCenter({ role }: { role: Role }) {
+  const router = useRouter();
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [q, setQ] = useState('');
@@ -50,12 +54,14 @@ export function NotificationsCenter({ role }: { role: Role }) {
   }, [items, filter, q]);
   const unread = items.filter((n) => !n.isRead);
 
-  async function markRead(id: string) {
+  async function openNotification(n: NotificationItem) {
+    // Navigate first so marking read can never block it, then mark read.
+    router.push(notificationHref(n, role));
     try {
-      await api(`/notifications/${id}/read`, { method: 'PATCH' });
-      setItems((prev) => prev.map((n) => (n.notificationId === id ? { ...n, isRead: true } : n)));
+      await api(`/notifications/${n.notificationId}/read`, { method: 'PATCH' });
+      setItems((prev) => prev.map((x) => (x.notificationId === n.notificationId ? { ...x, isRead: true } : x)));
     } catch {
-      /* ignore */
+      /* destination reloads live state anyway */
     }
   }
 
@@ -109,7 +115,8 @@ export function NotificationsCenter({ role }: { role: Role }) {
               return (
                 <li key={n.notificationId}>
                   <button
-                    onClick={() => markRead(n.notificationId)}
+                    onClick={() => openNotification(n)}
+                    aria-label={`Open: ${n.message}`}
                     className={`flex w-full items-start gap-3 px-2 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/60 ${n.isRead ? '' : 'bg-blue-50/40 dark:bg-blue-950/30'}`}
                   >
                     <span className="mt-1.5"><StatusDot color={k.color} /></span>
@@ -118,7 +125,7 @@ export function NotificationsCenter({ role }: { role: Role }) {
                       <span className={`block text-sm ${n.isRead ? 'text-slate-500 dark:text-slate-400' : 'font-medium text-slate-900 dark:text-slate-100'}`}>
                         {n.message}
                       </span>
-                      <span className="mt-0.5 block text-xs text-slate-400">{String(n.createdAt ?? '').slice(0, 16).replace('T', ' ')}</span>
+                      <span className="mt-0.5 block text-xs text-slate-400">{String(n.createdAt ?? '').slice(0, 16).replace('T', ' ')} · Tap to open</span>
                     </span>
                     {!n.isRead && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-blue-600" aria-label="Unread" />}
                   </button>

@@ -25,6 +25,8 @@ export default function OwnerDashboard() {
   const [routes, setRoutes] = useState<RouteFull[]>([]);
   const [users, setUsers] = useState<UserRow[]>([]);
   const [storage, setStorage] = useState<StorageSummary | null>(null);
+  // Roadmap #15 / UX #15: map filter actually filters (was a no-op button).
+  const [mapFilter, setMapFilter] = useState<'all' | 'active'>('all');
   const load = useCallback(() => {
     api<Order[]>('/orders').then(setOrders).catch(() => {});
     api<RouteFull[]>('/routes').then(setRoutes).catch(() => {});
@@ -63,11 +65,13 @@ export default function OwnerDashboard() {
     transit: orders.filter((o) => o.status === 'In Transit' || o.status === 'Approved').length,
     delivered: orders.filter((o) => o.status === 'Completed').length,
   };
-  // Revenue is informational (no billing table yet): estimate ₱850 per completed delivery.
+  // Revenue is an estimate until billing (F4) exists: rate lives in Settings.
+  // Roadmap #12: never present it as real revenue.
   const revenue = c.delivered * 850;
 
   const pins: MapPin[] = [];
   for (const r of routes) {
+    if (mapFilter === 'active' && !['Pending', 'In Progress'].includes(r.route.status)) continue;
     for (const s of r.stops ?? []) {
       const c = coordsOf(s.locationCoordinates);
       if (c) pins.push({ ...c, label: `${r.route.routeNumber} · ${s.stopType} · ${s.locationAddress}` });
@@ -77,18 +81,31 @@ export default function OwnerDashboard() {
   const recent = [...orders].sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? ''))).slice(0, 5);
   const pending = orders.filter((o) => o.status === 'Pending').slice(0, 5);
   const activity = buildActivity(orders, routes);
+  // Placement doc: Needs attention first — failed stops dispatchers must see.
+  const failedStops = routes.flatMap((r) =>
+    (r.stops ?? []).filter((s) => s.status === 'Failed').map((s) => ({ ...s, routeNumber: r.route.routeNumber })),
+  );
 
   return (
     <Shell role="Owner" title="Owner Dashboard">
       <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">{new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</p>
 
-      {/* Stat cards: wireframe 2.1: Today · Pending · In Transit · Delivered · Revenue */}
+      {failedStops.length > 0 && (
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4" role="alert">
+          <p className="text-sm font-semibold text-red-700">Needs attention: {failedStops.length} failed stop{failedStops.length === 1 ? '' : 's'}</p>
+          <ul className="mt-1 space-y-0.5 text-sm text-red-600">
+            {failedStops.slice(0, 3).map((s) => <li key={s.stopId}>{s.routeNumber} · {s.locationAddress}</li>)}
+          </ul>
+          <Link href="/owner/routes" className="mt-2 inline-block text-sm font-medium text-red-700 hover:underline">Review routes →</Link>
+        </div>
+      )}
+      {/* Stat cards: wireframe 2.1: Today · Pending · In Transit · Delivered · Revenue (estimate) */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Stat label="Today's Orders" value={c.today} tone="blue" />
         <Stat label="Pending" value={c.pending} tone="amber" />
         <Stat label="In Transit" value={c.transit} tone="blue" />
         <Stat label="Delivered" value={c.delivered} tone="green" />
-        <Stat label="Revenue today" value={`₱${revenue.toLocaleString()}`} tone="green" />
+        <Stat label="Revenue (estimate)" value={`₱${revenue.toLocaleString()}`} tone="green" />
       </div>
 
       {/* Delivery map + real-time activity */}
@@ -100,7 +117,13 @@ export default function OwnerDashboard() {
             <p className="py-8 text-center text-sm text-slate-400">No stops with coordinates yet. Pins appear once orders have map locations.</p>
           )}
           <div className="mt-3 flex gap-2 text-xs">
-            <button className="btn-ghost px-3 py-1 text-xs">Filter</button>
+            <button
+              onClick={() => setMapFilter((f) => (f === 'all' ? 'active' : 'all'))}
+              aria-pressed={mapFilter === 'active'}
+              className="btn-ghost px-3 py-1 text-xs"
+            >
+              {mapFilter === 'all' ? 'Show active only' : 'Show all'}
+            </button>
             <button onClick={load} className="btn-ghost px-3 py-1 text-xs">Refresh</button>
           </div>
         </Card>
@@ -159,11 +182,11 @@ export default function OwnerDashboard() {
               <div className="mt-2 h-2 overflow-hidden rounded bg-slate-100 dark:bg-slate-800" role="progressbar"
                 aria-valuenow={Math.round((storage.bytes / storage.quotaBytes) * 100)} aria-valuemin={0} aria-valuemax={100} aria-label="Photo storage used">
                 <span
-                  className={`block h-full rounded ${storage.bytes / storage.quotaBytes > 0.8 ? 'bg-red-500' : 'bg-[#f5a623]'}`}
+                  className={`block h-full rounded ${storage.bytes / storage.quotaBytes > 0.8 ? 'bg-red-500' : 'bg-[#0e7a70]'}`}
                   style={{ width: `${Math.min(100, (storage.bytes / storage.quotaBytes) * 100)}%` }}
                 />
               </div>
-              <p className="mt-2 text-xs text-slate-400">Receipt and waybill photos auto-delete 30 days after upload.</p>
+              <p className="mt-2 text-xs text-slate-400">Receipt and waybill photos are kept for 2 years (see Reports › Storage).</p>
             </div>
           )}
         </Card>

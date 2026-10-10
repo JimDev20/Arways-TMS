@@ -32,12 +32,12 @@ export default function ForgotPage() {
       <div className="w-full max-w-sm">
         <div className="mb-6 text-center">
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Reset password</h1>
-          <p className="mt-2 text-sm text-slate-500">Enter your email address and we will send you a link to reset your password.</p>
+          <p className="mt-2 text-sm text-slate-500">Email reset is not live yet (F1). Enter your email to check the format, then ask your Owner for a reset link.</p>
         </div>
         <div className="rounded-xl bg-white p-6 shadow-lg dark:border dark:border-slate-800 dark:bg-slate-900">
           {sent ? (
             <div role="status" className="rounded-lg bg-green-50 p-4 text-sm text-green-800 dark:bg-green-950 dark:text-green-300">
-              If that email exists, a reset link was sent. Check your inbox. Or ask your Owner to reset it from Users &gt; Reset password.
+              Email reset is not live yet, so no link was sent. Ask your Owner to reset it from Users &gt; Reset password (they will send you a one-time link).
             </div>
           ) : (
             <form onSubmit={submit} className="space-y-4">

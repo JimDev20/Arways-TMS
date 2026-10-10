@@ -23,6 +23,7 @@ export interface Truck {
 
 export type OrderStatus = 'Pending' | 'Approved' | 'Rejected' | 'In Transit' | 'Completed' | 'Cancelled';
 export type StopStatus = 'Pending' | 'Arrived' | 'Departed' | 'Delivered' | 'Failed';
+export type OrderPriority = 'Normal' | 'Urgent' | 'Rush';
 
 export interface Order {
   orderId: string;
@@ -33,6 +34,7 @@ export interface Order {
   scheduledDate: string;
   scheduledTime: string;
   specialInstructions: string | null;
+  priority: OrderPriority;
   status: OrderStatus;
   rejectionReason: string | null;
   createdAt: string;
@@ -133,6 +135,8 @@ export interface UserRow {
   email: string;
   fullName: string;
   role: Role;
+  phone: string | null;
+  licenseNo: string | null;
   status: string;
   createdAt: string | null;
   updatedAt: string | null;
@@ -176,7 +180,9 @@ export interface ReportSummary {
   total: number;
   delivered: number;
   failed: number;
+  deliveryRatePct: number;
   onTimePct: number;
+  onTimeJudged: number;
   byReason: Record<string, number>;
 }
 
@@ -307,6 +313,7 @@ export const NAV: Record<Role, NavSection[]> = {
         { href: '/secretary/new', label: 'New Order' },
         { href: '/secretary/monitoring', label: 'Monitoring' },
         { href: '/secretary/track', label: 'Track' },
+        { href: '/secretary/fleet', label: 'Fleet' },
         { href: '/secretary/calendar', label: 'Calendar' },
         { href: '/secretary/kanban', label: 'Status Board' },
       ],
@@ -351,6 +358,9 @@ export const NAV: Record<Role, NavSection[]> = {
       section: '',
       links: [
         { href: '/driver', label: "Today's Route" },
+        { href: '/driver/stops', label: 'Stops' },
+        { href: '/driver/proof', label: 'Proof' },
+        { href: '/driver/profile', label: 'Profile' },
         { href: '/driver/notifications', label: 'Notifications' },
         { href: '/driver/help', label: 'Help' },
       ],

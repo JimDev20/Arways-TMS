@@ -11,6 +11,7 @@ import { Roles } from '../common/roles.decorator.js';
 import { CurrentUser } from '../common/current-user.decorator.js';
 import type { JwtPayload } from '../common/roles.js';
 import { findUnpinnedStops } from '../common/route-pins.js';
+import { assertCoords, assertNonEmpty, assertPhotoUrl, assertText, TEXT_LIMITS } from '../common/validate.js';
 
 function point(lon: number, lat: number) {
   return sql`ST_SetSRID(ST_MakePoint(${lon}, ${lat}), 4326)` as any;
@@ -23,6 +24,39 @@ export class RoutesController {
     @Inject(DB) private readonly db: PostgresJsDatabase<typeof schema>,
     @Inject(SUPABASE) private readonly sb: SupabaseClient,
   ) {}
+
+  private async writeStatusEvent(
+    tx: any,
+    entity: 'order' | 'route' | 'stop',
+    entityId: string,
+    oldStatus: string | null,
+    newStatus: string,
+    actorUserId: string | null,
+    orderId?: string | null,
+    reason?: string | null,
+  ) {
+    try {
+      await tx.insert(schema.statusEvents).values({
+        entity,
+        entityId,
+        orderId: orderId ?? null,
+        oldStatus,
+        newStatus,
+        actorUserId,
+        reason: reason ?? null,
+      });
+    } catch {
+      /* missing table on old DBs; never blocks */
+    }
+  }
+
+  /** P0 #8: drivers may only touch their own routes/stops. */
+  private assertDriverOwns(user: JwtPayload, routeDriverId: string) {
+    if (user.role === 'Driver' && routeDriverId !== user.sub) {
+      // Same-as-missing (no id probing): 404-style message, 400 status family.
+      throw new BadRequestException('Route not found. Refresh your assigned routes.');
+    }
+  }
 
   private async notify(userIds: string[], type: string, message: string, orderId?: string) {
     if (!userIds.length) return;
@@ -106,6 +140,17 @@ export class RoutesController {
   async one(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     const r: any = (await this.db.select().from(schema.routes).where(eq(schema.routes.routeId, id)).limit(1))[0];
     if (!r) throw new BadRequestException('Route not found');
+    // P0 #8: driver scoping (same-as-missing to prevent id probing).
+    this.assertDriverOwns(user, r.assignedDriverId);
+    if (user.role === 'Client') {
+      const [order] = (await this.db.select().from(schema.orders).where(eq(schema.orders.orderId, r.orderId)).limit(1)) as any[];
+      if (order && (order as any).createdByUserId !== user.sub) {
+        const links: any[] = await this.db.select().from(schema.clientUsers).where(eq(schema.clientUsers.userId, user.sub));
+        if (!links.some((l: any) => l.clientId === (order as any).clientId)) {
+          throw new ForbiddenException('You can only view your own orders.');
+        }
+      }
+    }
     const stops: any[] = await this.db.select().from(schema.stops).where(eq(schema.stops.routeId, id));
     const route = user.role === 'Client' ? (({ dispatchLeftPhotoUrl: _dropped, ...rest }: any) => rest)(r) : r;
     return { route, stops: stops.sort((a, b) => a.stopSequence - b.stopSequence) };
@@ -141,12 +186,10 @@ export class RoutesController {
     } catch { /* name is best-effort */ }
     const added: string[] = [];
     for (const s of stores) {
-      const address = String(s.address ?? '').trim();
-      const lon = Number(s.lon ?? s.lng);
-      const lat = Number(s.lat);
-      if (!address || !Number.isFinite(lon) || !Number.isFinite(lat)) {
-        throw new BadRequestException('Each store needs an address and a map pin (lon/lat).');
-      }
+      const address = assertNonEmpty(s?.address, 'Store address');
+      const pin = assertCoords(s?.lat, s?.lon ?? s?.lng, `Store “${address}”`);
+      const lon = pin.lon;
+      const lat = pin.lat;
       await this.db.execute(sql`insert into stops (route_id, stop_sequence, stop_type, location_address, location_coordinates, time_window_start, time_window_end, product_description, product_quantity, status)
         values (${id}, ${nextSeq}, 'Dropoff', ${address}, ${point(lon, lat)}, ${s.windowStart ?? s.timeWindowStart ?? null}, ${s.windowEnd ?? s.timeWindowEnd ?? null}, ${s.productDescription ?? null}, ${s.productQuantity ?? null}, 'Pending')`);
       added.push(address);
@@ -159,8 +202,14 @@ export class RoutesController {
 
   @Patch('routes/:id/dispatch-arrived')
   @Roles('Driver', 'Owner', 'Secretary')
-  async arrivedDispatch(@Param('id') id: string) {
-    await this.db.update(schema.routes).set({ dispatchedArrivedAt: new Date() as any }).where(eq(schema.routes.routeId, id));
+  async arrivedDispatch(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    const r: any = (await this.db.select().from(schema.routes).where(eq(schema.routes.routeId, id)).limit(1))[0];
+    if (!r) throw new BadRequestException('Route not found. Refresh your assigned routes.');
+    this.assertDriverOwns(user, r.assignedDriverId);
+    await this.db.transaction(async (tx) => {
+      await tx.update(schema.routes).set({ dispatchedArrivedAt: new Date() as any }).where(eq(schema.routes.routeId, id));
+      await this.writeStatusEvent(tx, 'route', id, r.status, r.status, user.sub, r.orderId, 'dispatch arrived');
+    });
     return { ok: true, at: new Date().toISOString() };
   }
 
@@ -170,11 +219,13 @@ export class RoutesController {
    */
   @Patch('routes/:id/dispatch-left')
   @Roles('Driver', 'Owner', 'Secretary')
-  async leftDispatch(@Param('id') id: string, @Body() body: any) {
-    const photoUrl = String(body?.waybillPhotoUrl ?? body?.photoUrl ?? '').trim();
-    if (!photoUrl) {
-      throw new BadRequestException('Waybill photo required');
-    }
+  async leftDispatch(@Param('id') id: string, @Body() body: any, @CurrentUser() user: JwtPayload) {
+    const raw = String(body?.waybillPhotoUrl ?? body?.photoUrl ?? '').trim();
+    // P0 #3: validate the URL is a receipts-bucket https link (not any string).
+    const photoUrl = assertPhotoUrl(raw || ' ', 'Waybill photo');
+    const r: any = (await this.db.select().from(schema.routes).where(eq(schema.routes.routeId, id)).limit(1))[0];
+    if (!r) throw new BadRequestException('Route not found. Refresh your assigned routes.');
+    this.assertDriverOwns(user, r.assignedDriverId);
     // Sure-route gate: every store must already be pinned before departing.
     // Routes with no stores yet stay dispatchable (waiting flow preserved).
     const badDrops = (await findUnpinnedStops(this.db, id)).filter((s) => s.stopType === 'Dropoff');
@@ -182,50 +233,100 @@ export class RoutesController {
       const names = badDrops.map((s) => s.locationAddress).join(', ');
       throw new BadRequestException(`Cannot leave dispatch: ${badDrops.length} store${badDrops.length === 1 ? '' : 's'} ha${badDrops.length === 1 ? 's' : 've'} no map pin${badDrops.length === 1 ? '' : 's'}: ${names}. Pin all store locations first.`);
     }
-    await this.db
-      .update(schema.routes)
-      .set({ dispatchedLeftAt: new Date() as any, status: 'In Progress', dispatchLeftPhotoUrl: photoUrl } as any)
-      .where(eq(schema.routes.routeId, id));
+    const oldStatus = (r as any).status;
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(schema.routes)
+        .set({ dispatchedLeftAt: new Date() as any, status: 'In Progress', dispatchLeftPhotoUrl: photoUrl } as any)
+        .where(eq(schema.routes.routeId, id));
+      await this.writeStatusEvent(tx, 'route', id, oldStatus, 'In Progress', user.sub, (r as any).orderId, 'left dispatch');
+    });
     return { ok: true, at: new Date().toISOString() };
   }
 
   @Patch('stops/:id/status')
   @Roles('Driver', 'Owner', 'Secretary')
-  async stopStatus(@Param('id') id: string, @Body() body: any) {
+  async stopStatus(@Param('id') id: string, @Body() body: any, @CurrentUser() user: JwtPayload) {
     const { status, failedReason, receiptPhotoUrl, driverNotes } = body ?? {};
     if (!['Arrived', 'Departed', 'Delivered', 'Failed', 'Pending'].includes(status)) {
       throw new BadRequestException('Invalid status');
     }
-    if (status === 'Delivered' && !receiptPhotoUrl) {
-      throw new BadRequestException('Proof-of-delivery photo required');
-    }
-    if (status === 'Failed' && !failedReason) {
-      throw new BadRequestException('Failure reason required');
-    }
-    const patch: any = { status, driverNotes: driverNotes ?? null };
+    // P0 #3: receipt must be a receipts-bucket https link (not any URL string).
+    const cleanReceipt = status === 'Delivered' ? assertPhotoUrl(receiptPhotoUrl ?? '', 'Receipt photo') : null;
+    const cleanReason = status === 'Failed' ? assertText(failedReason, 'Failure reason', TEXT_LIMITS.reason) : null;
+    const cleanNotes = driverNotes ? assertText(driverNotes, 'Driver notes', TEXT_LIMITS.notes) : null;
+    const target: any = (await this.db.select().from(schema.stops).where(eq(schema.stops.stopId, id)).limit(1))[0];
+    if (!target) throw new BadRequestException('Stop not found. Refresh the route.');
+    const parentRoute: any = (await this.db.select().from(schema.routes).where(eq(schema.routes.routeId, target.routeId)).limit(1))[0];
+    if (!parentRoute) throw new BadRequestException('Route not found. Refresh your assigned routes.');
+    // P0 #8: driver may only update stops on their own route.
+    this.assertDriverOwns(user, parentRoute.assignedDriverId);
+    const oldStopStatus = target.status;
+    const patch: any = { status, driverNotes: cleanNotes ?? null };
     const now = new Date() as any;
     if (status === 'Arrived') patch.arrivedAt = now;
     if (status === 'Departed') patch.departedAt = now;
-    if (status === 'Delivered') { patch.deliveredAt = now; patch.receiptPhotoUrl = receiptPhotoUrl; }
-    if (status === 'Failed') patch.failedReason = failedReason;
-    await this.db.update(schema.stops).set(patch).where(eq(schema.stops.stopId, id));
+    if (status === 'Delivered') { patch.deliveredAt = now; patch.receiptPhotoUrl = cleanReceipt; }
+    if (status === 'Failed') patch.failedReason = cleanReason;
+    await this.db.transaction(async (tx) => {
+      await tx.update(schema.stops).set(patch).where(eq(schema.stops.stopId, id));
+      await this.writeStatusEvent(tx, 'stop', id, oldStopStatus, status, user.sub, parentRoute.orderId, (cleanReason ?? cleanNotes ?? null) as any);
+    });
 
-    // If all dropoffs delivered → complete route + order, free truck.
+    // P0 #4: a route completes when all dropoffs are TERMINAL (Delivered or
+    // Failed) — not only when all are Delivered. One Failed stop no longer
+    // strands the truck In Use forever. All-Delivered → Completed (clean);
+    // mixed terminal → Completed with exceptions (order Completed, message
+    // names the failed stops; Owner/Secretary can force-close edge cases).
     // Pickup-only routes (0 dropoffs) intentionally stay In Progress until stores are added.
     const s: any = (await this.db.select().from(schema.stops).where(eq(schema.stops.stopId, id)).limit(1))[0];
     if (s) {
       const siblings: any[] = await this.db.select().from(schema.stops).where(eq(schema.stops.routeId, s.routeId));
       const dropoffs = siblings.filter((x) => x.stopType === 'Dropoff');
-      if (dropoffs.length && dropoffs.every((x) => x.status === 'Delivered')) {
-        await this.db.update(schema.routes).set({ status: 'Completed' }).where(eq(schema.routes.routeId, s.routeId));
-        const r: any = (await this.db.select().from(schema.routes).where(eq(schema.routes.routeId, s.routeId)).limit(1))[0];
+      const r: any = (await this.db.select().from(schema.routes).where(eq(schema.routes.routeId, s.routeId)).limit(1))[0];
+      const o: any = r
+        ? (await this.db.select().from(schema.orders).where(eq(schema.orders.orderId, r.orderId)).limit(1))[0]
+        : null;
+      if (status === 'Failed' && o) {
+        // Everyone watching this order learns why it failed.
+        await this.notifyOrderWatchers(o, 'stop_failed', `Stop “${s.locationAddress}” failed: ${cleanReason} (Order ${o.orderReference})`);
+      }
+      const terminal = (x: any) => x.status === 'Delivered' || x.status === 'Failed';
+      if (dropoffs.length && dropoffs.every(terminal)) {
+        const failedNames = dropoffs.filter((x) => x.status === 'Failed').map((x) => x.locationAddress);
+        const clean = failedNames.length === 0;
+        await this.db.transaction(async (tx) => {
+          await tx.update(schema.routes).set({ status: 'Completed' }).where(eq(schema.routes.routeId, s.routeId));
+          await this.writeStatusEvent(tx, 'route', s.routeId, r?.status ?? null, 'Completed', user.sub, r?.orderId ?? null, clean ? 'all delivered' : `completed with exceptions: ${failedNames.join(', ')}`);
+          if (r) {
+            await tx.update(schema.orders).set({ status: 'Completed' }).where(eq(schema.orders.orderId, r.orderId));
+            await this.writeStatusEvent(tx, 'order', r.orderId, o?.status ?? null, 'Completed', user.sub, r.orderId, clean ? 'all delivered' : `completed with exceptions: ${failedNames.join(', ')}`);
+            if (o?.truckId) await tx.update(schema.trucks).set({ status: 'Available' }).where(eq(schema.trucks.truckId, o.truckId));
+          }
+        });
         if (r) {
-          await this.db.update(schema.orders).set({ status: 'Completed' }).where(eq(schema.orders.orderId, r.orderId));
-          const o: any = (await this.db.select().from(schema.orders).where(eq(schema.orders.orderId, r.orderId)).limit(1))[0];
-          if (o?.truckId) await this.db.update(schema.trucks).set({ status: 'Available' }).where(eq(schema.trucks.truckId, o.truckId));
+          if (o) {
+            const msg = clean
+              ? `Order ${o.orderReference} delivered — all ${dropoffs.length} stop${dropoffs.length === 1 ? '' : 's'} done`
+              : `Order ${o.orderReference} completed with exceptions — failed: ${failedNames.join(', ')}`;
+            await this.notifyOrderWatchers(o, 'order_completed', msg);
+          }
         }
       }
     }
     return { ok: true };
+  }
+
+  /**
+   * Completion/failure fan-out: all active Owners + Secretaries plus the
+   * client who created the order. The driver already knows (they tapped it).
+   */
+  private async notifyOrderWatchers(order: any, type: string, message: string) {
+    const staff: any[] = await this.db.select().from(schema.users);
+    const ids = staff
+      .filter((u: any) => u.status === 'Active' && (u.role === 'Owner' || u.role === 'Secretary'))
+      .map((u: any) => u.userId);
+    if (order?.createdByUserId && !ids.includes(order.createdByUserId)) ids.push(order.createdByUserId);
+    await this.notify(ids, type, message, order?.orderId);
   }
 }

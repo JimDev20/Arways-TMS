@@ -3,8 +3,8 @@ export type Role = 'Owner' | 'Secretary' | 'Client' | 'Driver';
 export type UserStatus = 'Active' | 'Inactive';
 export type TruckType = 'Refrigerated' | 'Dry';
 export type TruckStatus = 'Available' | 'In Use' | 'Maintenance';
-export type OrderStatus = 'Pending' | 'Approved' | 'Rejected' | 'In Transit' | 'Completed';
-export type RouteStatus = 'Pending' | 'In Progress' | 'Completed';
+export type OrderStatus = 'Pending' | 'Approved' | 'Rejected' | 'In Transit' | 'Completed' | 'Cancelled';
+export type RouteStatus = 'Pending' | 'In Progress' | 'Completed' | 'Cancelled';
 export type StopStatus = 'Pending' | 'Arrived' | 'Departed' | 'Delivered' | 'Failed';
 
 export interface JwtPayload {
@@ -13,4 +13,5 @@ export interface JwtPayload {
   role: Role;
 }
 
-export const ROLE_RANK: Record<Role, number> = { Owner: 4, Secretary: 3, Client: 2, Driver: 1 };
+// NOTE (roadmap #9): ROLE_RANK deleted. Guard uses exact @Roles() matching —
+// no hierarchy. Owner does not imply Secretary; each endpoint lists its roles.

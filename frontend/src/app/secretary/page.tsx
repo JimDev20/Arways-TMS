@@ -6,6 +6,7 @@ import { api } from '@/lib/supabase';
 import { useRealtime } from '@/lib/realtime';
 import { Icons } from '@/lib/createLucideIcon';
 import { errorMessage, type Order, type RouteFull } from '@/lib/types';
+import { PriorityBadge } from '@/components/PriorityBadge';
 
 function todayStr() { return new Date().toISOString().slice(0, 10); }
 
@@ -28,9 +29,21 @@ export default function SecretaryDashboard() {
   const pending = orders.filter((o) => o.status === 'Pending');
   const routeByOrder = new Map(routes.map((r) => [r.route.orderId, r]));
   const approvedToday = routes.filter((r) => r.route.status === 'In Progress' || r.orderStatus === 'Approved');
+  const failedStops = routes.flatMap((r) =>
+    (r.stops ?? []).filter((s) => s.status === 'Failed').map((s) => ({ ...s, routeNumber: r.route.routeNumber })),
+  );
 
   return (
     <Shell role="Secretary" title="Dashboard">
+      {failedStops.length > 0 && (
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4" role="alert">
+          <p className="text-sm font-semibold text-red-700">Needs attention: {failedStops.length} failed stop{failedStops.length === 1 ? '' : 's'}</p>
+          <ul className="mt-1 space-y-0.5 text-sm text-red-600">
+            {failedStops.slice(0, 3).map((s) => <li key={s.stopId}>{s.routeNumber} · {s.locationAddress}</li>)}
+          </ul>
+          <Link href="/secretary/monitoring?filter=attention" className="mt-2 inline-block text-sm font-medium text-red-700 hover:underline">Open monitoring →</Link>
+        </div>
+      )}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label="Pending Approval" value={pending.length} tone="amber" />
         <Stat label="Approved Today" value={orders.filter((o) => o.status === 'Approved' && isToday(o.createdAt)).length} tone="blue" />
@@ -70,7 +83,7 @@ export default function SecretaryDashboard() {
       <div className="mt-6 rounded-xl bg-white p-6 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-900">Today&apos;s Approved Routes</h2>
-          <Link href="/secretary/monitoring" className="text-sm font-medium text-[#f5a623] hover:underline">Monitor all</Link>
+          <Link href="/secretary/monitoring" className="text-sm font-medium text-[#0e7a70] hover:underline">Monitor all</Link>
         </div>
         {approvedToday.length === 0 ? (
           <p className="py-6 text-center text-sm text-slate-400">No approved routes yet today.</p>
@@ -142,6 +155,7 @@ export function ApprovalCard({ order, route, onDone }: { order: Order; route: Ro
             }`}>
               {order.status}
             </span>
+            <PriorityBadge priority={order.priority} />
           </div>
           <p className="mt-2 text-sm text-slate-500">
             Scheduled: {order.scheduledDate} at {order.scheduledTime}
@@ -171,13 +185,13 @@ export function ApprovalCard({ order, route, onDone }: { order: Order; route: Ro
         <button
           onClick={approve}
           disabled={isApproving}
-          className="flex-1 rounded-lg bg-[#f5a623] py-2.5 px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#e69b1e] disabled:opacity-60"
+          className="flex-1 rounded-lg bg-[#0e7a70] py-2.5 px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#0b625a] disabled:opacity-60"
         >
           {isApproving ? 'Approving...' : 'Approve'}
         </button>
         <div className="flex-1">
           <input
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#f5a623] focus:outline-none focus:ring-1 focus:ring-[#f5a623]"
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
             placeholder="Rejection reason (required to reject)"
             value={reason}
             onChange={(e) => setReason(e.target.value)}

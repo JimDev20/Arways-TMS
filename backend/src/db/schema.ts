@@ -10,6 +10,8 @@ export const users = pgTable('users', {
   passwordHash: text('password_hash').notNull(),
   fullName: text('full_name').notNull(),
   role: text('role').notNull(),
+  phone: text('phone'),
+  licenseNo: text('license_no'),
   status: text('status').notNull().default('Active'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
@@ -64,6 +66,7 @@ export const orders = pgTable('orders', {
   scheduledDate: date('scheduled_date').notNull(),
   scheduledTime: time('scheduled_time').notNull(),
   specialInstructions: text('special_instructions'),
+  priority: text('priority').notNull().default('Normal'),
   status: text('status').notNull().default('Pending'),
   rejectionReason: text('rejection_reason'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
@@ -112,5 +115,37 @@ export const notifications = pgTable('notifications', {
   message: text('message').notNull(),
   relatedOrderId: uuid('related_order_id'),
   isRead: boolean('is_read').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+});
+
+export const authLogs = pgTable('auth_logs', {
+  logId: uuid('log_id').primaryKey().defaultRandom(),
+  email: text('email').notNull(),
+  success: boolean('success').notNull(),
+  ipAddress: text('ip_address'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+});
+
+export const auditLogs = pgTable('audit_logs', {
+  logId: uuid('log_id').primaryKey().defaultRandom(),
+  actorUserId: uuid('actor_user_id'),
+  action: text('action').notNull(),
+  targetType: text('target_type'),
+  targetId: uuid('target_id'),
+  beforeValue: text('before_value'),
+  afterValue: text('after_value'),
+  ipAddress: text('ip_address'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+});
+
+export const statusEvents = pgTable('status_events', {
+  eventId: uuid('event_id').primaryKey().defaultRandom(),
+  entity: text('entity').notNull(),
+  entityId: uuid('entity_id').notNull(),
+  orderId: uuid('order_id'),
+  oldStatus: text('old_status'),
+  newStatus: text('new_status').notNull(),
+  actorUserId: uuid('actor_user_id'),
+  reason: text('reason'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
