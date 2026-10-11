@@ -2,26 +2,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Shell } from '@/components/Shell';
-import { Card, Empty, StatusDot, type DotColor } from '@/components/saas';
+import { Card, Empty, StatusDot } from '@/components/saas';
 import { api } from '@/lib/supabase';
 import { useRealtime } from '@/lib/realtime';
-import { notificationHref } from '@/lib/notifications';
+import { kindOf, notificationHref } from '@/lib/notifications';
 import type { NotificationItem, Role } from '@/lib/types';
-
-const KIND: { match: RegExp; color: DotColor; label: string }[] = [
-  { match: /order/i, color: 'red', label: 'New order' },
-  { match: /arriv/i, color: 'yellow', label: 'Delivery update' },
-  { match: /deliver|complet/i, color: 'green', label: 'Delivered' },
-  { match: /delay|behind|fail/i, color: 'red', label: 'Alert' },
-  { match: /approv/i, color: 'blue', label: 'Approval' },
-];
-
-const FALLBACK_KIND: { color: DotColor; label: string } = { color: 'gray', label: 'Notice' };
-
-function kindOf(message: string): { color: DotColor; label: string } {
-  for (const k of KIND) if (k.match.test(message)) return k;
-  return FALLBACK_KIND;
-}
 
 /** Wireframe 2.7: full-page notification center (all roles). */
 /** Every row is clickable and opens the notification's own section. */
