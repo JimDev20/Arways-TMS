@@ -273,6 +273,12 @@ export function Shell({ role, title, children }: { role: Role; title: string; ch
 
 const TOAST_LIFETIME_MS = 8000;
 const MAX_TOASTS = 4;
+/** Failure toasts stay until dismissed (DHL Alert `persistent`): never auto-dismiss. */
+const PERSISTENT_TOAST_TYPES = new Set(['stop_failed', 'order_rejected', 'order_cancelled']);
+
+function isPersistentToast(n: NotificationItem) {
+  return PERSISTENT_TOAST_TYPES.has(String(n.notificationType ?? ''));
+}
 
 /**
  * Stacked toast popups for newly arrived notifications.
@@ -296,6 +302,7 @@ function NotificationToasts({ role }: { role: Role }) {
     for (const n of fresh) known.add(n.notificationId);
     setToasts((prev) => [...fresh, ...prev].slice(0, MAX_TOASTS));
     for (const n of fresh) {
+      if (isPersistentToast(n)) continue;
       window.setTimeout(() => {
         setToasts((prev) => prev.filter((t) => t.notificationId !== n.notificationId));
       }, TOAST_LIFETIME_MS);
@@ -345,7 +352,7 @@ function NotificationToasts({ role }: { role: Role }) {
       {toasts.map((n) => (
         <div
           key={n.notificationId}
-          className="pointer-events-auto flex items-start gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-lg dark:border-slate-700 dark:bg-slate-900"
+          className={`pointer-events-auto flex items-start gap-2 rounded-xl border bg-white p-3 shadow-lg dark:bg-slate-900 ${isPersistentToast(n) ? 'border-red-300 dark:border-red-800' : 'border-slate-200 dark:border-slate-700'}`}
         >
           <button
             onClick={() => openToast(n)}
@@ -354,7 +361,7 @@ function NotificationToasts({ role }: { role: Role }) {
           >
             <span className="block text-sm font-medium text-slate-900 dark:text-slate-100">{n.message}</span>
             <span className="mt-0.5 block text-xs text-slate-400">
-              {String(n.createdAt ?? '').slice(0, 16).replace('T', ' ')} · Tap to view
+              {String(n.createdAt ?? '').slice(0, 16).replace('T', ' ')} · Tap to view{isPersistentToast(n) ? ' · stays until dismissed' : ''}
             </span>
           </button>
           <button
