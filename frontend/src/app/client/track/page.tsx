@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Shell } from '@/components/Shell';
 import { Card, Empty } from '@/components/saas';
+import { SearchField } from '@/components/SearchField';
 import { api } from '@/lib/supabase';
 import type { Order } from '@/lib/types';
 
@@ -18,7 +19,7 @@ export default function ClientTrackListPage() {
 
   return (
     <Shell role="Client" title="Track Orders">
-      <Card title={`My shipments (${visible.length})`} action={<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search my orders by reference (e.g. JFC-2026-00123)…" aria-label="Search orders" className="w-48 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-900" />}>
+      <Card title={`My shipments (${visible.length})`} action={<SearchField value={q} onChange={setQ} placeholder="Search my orders by reference (e.g. JFC-2026-00123)…" label="Search orders" withIcon={false} inputClassName="w-48 rounded-lg border border-slate-200 bg-white pl-3 pr-8 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-900" />}>
         {visible.length === 0 ? (
           <Empty message="No orders to track yet." cta={<Link href="/client/new" className="btn-primary text-sm">Create order</Link>} />
         ) : (

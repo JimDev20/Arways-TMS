@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import type { Order, RouteFull, StopRow, TruckWithDriver, UserRow } from '@/lib/types';
 import { Icons } from '@/lib/createLucideIcon';
+import { SearchField } from '@/components/SearchField';
 
 /* ------------------------------------------------------------------ */
 /* Small layout helpers (wireframe: consistent SaaS cards)             */
@@ -497,14 +498,15 @@ export function GlobalSearch({ docs, base, placeholder }: { docs: SearchDocs; ba
 
   return (
     <div className="relative hidden md:block">
-      <input
+      <SearchField
         value={q}
-        onChange={(e) => { setQ(e.target.value); setOpen(true); }}
+        onChange={(v) => { setQ(v); setOpen(true); }}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         onFocus={() => setOpen(true)}
         placeholder={placeholder}
-        aria-label="Global search"
-        className="w-52 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm focus:border-blue-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 lg:w-64"
+        label="Global search"
+        withIcon={false}
+        inputClassName="w-52 rounded-lg border border-slate-200 bg-slate-50 pl-3 pr-8 py-1.5 text-sm focus:border-blue-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 lg:w-64"
       />
       {open && q.trim().length === 1 && (
         <p role="status" className="absolute left-0 right-0 z-30 mt-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-500 shadow-lg dark:border-slate-700 dark:bg-slate-900">Keep typing. Search starts at 2 characters.</p>

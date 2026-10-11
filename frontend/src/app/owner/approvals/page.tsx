@@ -5,6 +5,7 @@ import { Shell } from '@/components/Shell';
 import { api } from '@/lib/supabase';
 import { useRealtime } from '@/lib/realtime';
 import { Icons } from '@/lib/createLucideIcon';
+import { SearchField } from '@/components/SearchField';
 import type { Order } from '@/lib/types';
 
 export default function OwnerApprovalsPage() {
@@ -25,18 +26,14 @@ export default function OwnerApprovalsPage() {
 
   return (
     <Shell role="Owner" title="Order Approvals">
-      <div className="relative mb-4">
-        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-          <Icons.Search className="h-4 w-4 text-slate-400" />
-        </div>
-        <input
-          className="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
-          placeholder="Search by reference or date (YYYY-MM-DD)…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          aria-label="Search approval queue"
-        />
-      </div>
+      <SearchField
+        value={q}
+        onChange={setQ}
+        placeholder="Search by reference or date (YYYY-MM-DD)…"
+        label="Search approval queue"
+        className="mb-4"
+        inputClassName="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-9 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
+      />
       {filtered.length > 0 ? (
         <div className="rounded-xl bg-white shadow-sm">
           <div className="border-b border-slate-200 px-6 py-4">
@@ -45,7 +42,7 @@ export default function OwnerApprovalsPage() {
                 <Icons.CheckCircle className="h-5 w-5 text-slate-400" />
                 <h2 className="text-lg font-semibold text-slate-900">Approval Queue</h2>
               </div>
-              <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
+              <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700" role="status">
                 {filtered.length} of {orders.length} pending
               </span>
             </div>

@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/supabase';
 import { Icons } from '@/lib/createLucideIcon';
+import { SearchField } from '@/components/SearchField';
 import { errorMessage, type ProofItem } from '@/lib/types';
 
 /** Shared proof-of-delivery list. Role only affects the surrounding Shell. */
@@ -38,18 +39,17 @@ export function ProofList() {
   }
   return (
     <div>
-      <div className="relative mb-4">
-        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-          <Icons.Search className="h-4 w-4 text-slate-400" />
-        </div>
-        <input
-          className="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
-          placeholder="Search reference, route, driver, address…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          aria-label="Search proof records"
-        />
-      </div>
+      <SearchField
+        value={q}
+        onChange={setQ}
+        placeholder="Search reference, route, driver, address…"
+        label="Search proof records"
+        className="mb-4"
+        inputClassName="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-9 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
+      />
+      {items.length > 0 && (
+        <p role="status" className="mb-3 text-xs text-slate-500">{filtered.length} of {items.length} records</p>
+      )}
       {filtered.length === 0 && (
         <p className="rounded-xl bg-white py-10 text-center text-sm text-slate-400 shadow-sm">No proof records match. Try a different search.</p>
       )}

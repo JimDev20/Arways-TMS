@@ -7,6 +7,7 @@ import { errorMessage, type ClientRow, type UserRow } from '@/lib/types';
 import { emailHint, isEmailLike, passwordMissing } from '@/lib/errors';
 import { FieldHint, FormErrorBanner, PasswordChecklist, type FormErrorItem } from '@/components/FieldHint';
 import { StatusPill } from '@/components/StatusPill';
+import { SearchField } from '@/components/SearchField';
 
 const ROLE_FILTERS = ['All', 'Owner', 'Secretary', 'Client', 'Driver'];
 
@@ -136,24 +137,20 @@ export default function UsersPage() {
           <h2 className="text-lg font-semibold text-slate-900">Team Members</h2>
         </div>
         <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
-          {filtered.length} of {users.length} members
+          <span role="status">{filtered.length} of {users.length} members</span>
         </span>
       </div>
 
       {/* Search + filter */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-52">
-          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-            <Icons.Search className="h-4 w-4 text-slate-400" />
-          </div>
-          <input
-            className="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
-            placeholder="Search name or email…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            aria-label="Search users"
-          />
-        </div>
+        <SearchField
+          value={q}
+          onChange={setQ}
+          placeholder="Search name or email…"
+          label="Search users"
+          className="flex-1 min-w-52"
+          inputClassName="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-9 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
+        />
         <select className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} aria-label="Filter by role">
           {ROLE_FILTERS.map((r) => <option key={r}>{r}</option>)}
         </select>

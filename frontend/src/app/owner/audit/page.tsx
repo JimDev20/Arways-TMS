@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Shell } from '@/components/Shell';
 import { Card, Empty } from '@/components/saas';
+import { SearchField } from '@/components/SearchField';
 import { api } from '@/lib/supabase';
 import { useRealtime } from '@/lib/realtime';
 import { Icons } from '@/lib/createLucideIcon';
@@ -150,12 +151,14 @@ export default function OwnerAuditPage() {
           </div>
         )}
         <div className="mb-4 flex flex-col gap-2 sm:flex-row">
-          <input
+          <SearchField
             value={q}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={setQ}
             placeholder="Search logs by actor, action, or order ref…"
-            aria-label="Search audit logs"
-            className="field sm:max-w-xs"
+            label="Search audit logs"
+            withIcon={false}
+            className="sm:max-w-xs"
+            inputClassName="field w-full pr-9"
           />
           <select value={action} onChange={(e) => setAction(e.target.value)} aria-label="Filter by action" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900">
             {['All', 'CREATE', 'APPROVE', 'REJECT', 'CANCEL', 'UPDATE', 'NOTIFY'].map((a) => (

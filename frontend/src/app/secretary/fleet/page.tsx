@@ -5,6 +5,7 @@ import { DriverBadge } from '@/components/DriverBadge';
 import { api } from '@/lib/supabase';
 import { Icons } from '@/lib/createLucideIcon';
 import { errorMessage, type MaintenanceLog, type TruckWithDriver } from '@/lib/types';
+import { SearchField } from '@/components/SearchField';
 
 /**
  * Secretary Fleet (Improvement Roadmap #10).
@@ -82,17 +83,19 @@ export default function SecretaryFleetPage() {
       </p>
       {err && <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{err}</div>}
       <div className="mb-4 flex flex-wrap gap-3">
-        <input
+        <SearchField
           value={q}
-          onChange={(e) => setQ(e.target.value)}
+          onChange={setQ}
           placeholder="Search by plate number (e.g. ABC 123)…"
-          aria-label="Search fleet"
-          className="min-w-52 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+          label="Search fleet"
+          withIcon={false}
+          className="min-w-52 flex-1"
+          inputClassName="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 pr-9 text-sm"
         />
         <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Filter by status" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
           {['All', 'Available', 'In Use', 'Maintenance'].map((s) => <option key={s}>{s}</option>)}
         </select>
-        <span className="self-center text-xs text-slate-500">{filtered.length} of {trucks.length}</span>
+        <span className="self-center text-xs text-slate-500" role="status">{filtered.length} of {trucks.length}</span>
       </div>
       <div className="overflow-x-auto rounded-xl bg-white shadow-sm">
         <table className="w-full text-sm">

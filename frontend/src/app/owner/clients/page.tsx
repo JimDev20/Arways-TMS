@@ -6,6 +6,7 @@ import { Icons } from '@/lib/createLucideIcon';
 import { errorMessage, type ClientRow } from '@/lib/types';
 import { emailHint, isEmailLike } from '@/lib/errors';
 import { FieldHint, FormErrorBanner, type FormErrorItem } from '@/components/FieldHint';
+import { SearchField } from '@/components/SearchField';
 
 const EMPTY = { companyName: '', contactPerson: '', phone: '', email: '', dispatchAreaAddress: '', lon: '', lat: '', entranceInstructions: '', dispatcherContact: '' };
 
@@ -75,19 +76,15 @@ export default function OwnerClientsPage() {
   return (
     <Shell role="Owner" title="Clients">
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-52">
-          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-            <Icons.Search className="h-4 w-4 text-slate-400" />
-          </div>
-          <input
-            className="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
-            placeholder="Search company, contact, email…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            aria-label="Search clients"
-          />
-        </div>
-        <span className="text-xs text-slate-500">{filtered.length} of {clients.length}</span>
+        <SearchField
+          value={q}
+          onChange={setQ}
+          placeholder="Search company, contact, email…"
+          label="Search clients"
+          className="flex-1 min-w-52"
+          inputClassName="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-9 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
+        />
+        <span className="text-xs text-slate-500" role="status">{filtered.length} of {clients.length}</span>
       </div>
       <div className="rounded-xl bg-white shadow-sm">
         <div className="border-b border-slate-200 px-6 py-4">

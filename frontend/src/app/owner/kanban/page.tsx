@@ -5,7 +5,7 @@ import { Shell } from '@/components/Shell';
 import { KanbanBoard } from '@/components/saas';
 import { api } from '@/lib/supabase';
 import { useRealtime } from '@/lib/realtime';
-import { Icons } from '@/lib/createLucideIcon';
+import { SearchField } from '@/components/SearchField';
 import type { Order, RouteFull } from '@/lib/types';
 
 /** Owner order kanban board (all orders). */
@@ -28,18 +28,14 @@ export default function OwnerKanbanPage() {
 
   return (
     <Shell role="Owner" title="Order Status Board">
-      <div className="relative mb-4">
-        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-          <Icons.Search className="h-4 w-4 text-slate-400" />
-        </div>
-        <input
-          className="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
-          placeholder="Search by reference or date (YYYY-MM-DD)…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          aria-label="Search status board cards"
-        />
-      </div>
+      <SearchField
+        value={q}
+        onChange={setQ}
+        placeholder="Search by reference or date (YYYY-MM-DD)…"
+        label="Search status board cards"
+        className="mb-4"
+        inputClassName="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-9 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
+      />
       <label className="mb-4 flex cursor-pointer items-center gap-2 text-sm text-slate-600">
         <input type="checkbox" checked={showCancelled} onChange={(e) => setShowCancelled(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-[#0e7a70]" />
         Show cancelled

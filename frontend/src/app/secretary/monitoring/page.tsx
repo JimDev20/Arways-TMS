@@ -5,6 +5,7 @@ import { api } from '@/lib/supabase';
 import { useRealtime } from '@/lib/realtime';
 import { Icons } from '@/lib/createLucideIcon';
 import { StatusPill } from '@/components/StatusPill';
+import { SearchField } from '@/components/SearchField';
 import { errorMessage, type RouteFull, type StopRow } from '@/lib/types';
 
 const STATUS_FILTERS = ['All', 'Pending', 'In Progress', 'Completed'];
@@ -56,16 +57,14 @@ export default function MonitoringPage() {
   return (
     <Shell role="Secretary" title="Delivery Monitoring (live)">
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-52">
-          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-            <Icons.Search className="h-4 w-4 text-slate-400" />
-          </div>
-          <input
-            className="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
-            placeholder="Search route, order, driver, truck…"
-            value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search routes"
-          />
-        </div>
+        <SearchField
+          value={q}
+          onChange={setQ}
+          placeholder="Search route, order, driver, truck…"
+          label="Search routes"
+          className="flex-1 min-w-52"
+          inputClassName="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-9 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
+        />
         <select className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Filter by status">
           {STATUS_FILTERS.map((s) => <option key={s}>{s}</option>)}
         </select>
@@ -80,7 +79,7 @@ export default function MonitoringPage() {
         >
           Needs attention
         </button>
-        <span className="text-xs text-slate-500">{filtered.length} of {routes.length}</span>
+        <span className="text-xs text-slate-500" role="status">{filtered.length} of {routes.length}</span>
         <span className="text-xs text-slate-400">Sort: needs attention first</span>
       </div>
       {err && <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{err}</div>}
