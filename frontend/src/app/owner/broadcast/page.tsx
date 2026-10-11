@@ -69,8 +69,11 @@ export default function OwnerBroadcastPage() {
                 aria-describedby="bc-message-hint"
                 placeholder="Warehouse closed Friday. Plan pickups for Thursday."
                 className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]" />
-              <p id="bc-message-hint" className={`text-xs ${message.trim().length > 500 ? 'text-red-600' : 'text-slate-400'}`}>
-                {message.trim().length}/500 characters. Keep it to one fact and one action.
+              <p id="bc-message-hint" className="flex items-center justify-between gap-2 text-xs text-slate-400">
+                <span>Keep it to one fact and one action.</span>
+                <span className={500 - message.trim().length < 0 ? 'font-semibold text-red-600' : undefined}>
+                  {500 - message.trim().length} characters left
+                </span>
               </p>
             </div>
             <button type="submit" disabled={busy}
