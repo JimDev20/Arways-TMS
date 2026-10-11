@@ -1,14 +1,15 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Shell } from '@/components/Shell';
 import { DriverBadge } from '@/components/DriverBadge';
 import { api } from '@/lib/supabase';
 import { Icons } from '@/lib/createLucideIcon';
-import { errorMessage, TRUCK_SIZES, type MaintenanceLog, type Truck, type TruckSize, type TruckWithDriver, type UserRow } from '@/lib/types';
+import { errorMessage, TRUCK_SIZES, type MaintenanceLog, type Page, type Truck, type TruckSize, type TruckWithDriver, type UserRow } from '@/lib/types';
+import { Pager, TableSkeleton } from '@/components/saas';
+import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { FieldHint } from '@/components/FieldHint';
 import { StatusPill } from '@/components/StatusPill';
 import { SearchField } from '@/components/SearchField';
-import { TableSkeleton } from '@/components/saas';
 
 function todayStr() { return new Date().toISOString().slice(0, 10); }
 
@@ -22,16 +23,24 @@ function dueBadge(nextDue: string | null): { text: string; urgent: boolean } | n
 
 const TRUCK_STATUSES = ['All', 'Available', 'In Use', 'Maintenance'];
 
+const PAGE_SIZE = 20;
+
 export default function FleetPage() {
   const [trucks, setTrucks] = useState<TruckWithDriver[]>([]);
   const [drivers, setDrivers] = useState<UserRow[]>([]);
   const [form, setForm] = useState({ plateNumber: '', truckType: 'Refrigerated', truckSize: '6W' as TruckSize, capacityKg: 2000, assignedDriverId: '' });
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('All');
+  const debouncedQ = useDebouncedValue(q);
+  const [page, setPage] = useState(1);
+  const [cursors, setCursors] = useState<(string | null)[]>([null]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [listErr, setListErr] = useState('');
   const [err, setErr] = useState('');
   const [okMsg, setOkMsg] = useState('');
   const [busy, setBusy] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState('');
   const [edit, setEdit] = useState({ plateNumber: '', truckType: 'Refrigerated', truckSize: '6W' as TruckSize, capacityKg: 2000, status: 'Available', assignedDriverId: '' });
   const [mDate, setMDate] = useState(todayStr());
@@ -77,24 +86,41 @@ export default function FleetPage() {
     }
   }
 
+  // Server-side search, filter and cursor pagination (§3.7). Text covers
+  // plate, type and size; status is the one collection select filter.
+  const loadPage = useCallback((p: number, stack: (string | null)[], silent: boolean, qq: string, st: string) => {
+    if (!silent) setLoading(true);
+    setListErr('');
+    const params = new URLSearchParams({ limit: String(PAGE_SIZE) });
+    const cur = stack[p - 1];
+    if (cur) params.set('cursor', cur);
+    if (st !== 'All') params.set('status', st);
+    if (qq.trim()) params.set('q', qq.trim());
+    return api<Page<TruckWithDriver>>(`/trucks?${params.toString()}`)
+      .then((r) => {
+        setTrucks(r.items);
+        setNextCursor(r.nextCursor);
+        setTotal(r.total);
+      })
+      .catch((e: unknown) => {
+        setListErr(errorMessage(e, 'Could not load fleet.'));
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
   async function reload() {
-    setTrucks(await api<TruckWithDriver[]>('/trucks'));
-    const users = await api<UserRow[]>('/users');
+    await loadPage(page, cursors, true, debouncedQ, status);
+    const users = await api<UserRow[]>('/users').catch(() => [] as UserRow[]);
     setDrivers(users.filter((u) => u.role === 'Driver'));
   }
   useEffect(() => {
     let live = true;
     (async () => {
       try {
-        const [t, users] = await Promise.all([api<TruckWithDriver[]>('/trucks'), api<UserRow[]>('/users')]);
-        if (live) {
-          setTrucks(t);
-          setDrivers(users.filter((u) => u.role === 'Driver'));
-        }
+        const users = await api<UserRow[]>('/users');
+        if (live) setDrivers(users.filter((u) => u.role === 'Driver'));
       } catch {
-        /* list stays empty: user can retry */
-      } finally {
-        if (live) setLoading(false);
+        /* drivers stay empty: assignment still works by id */
       }
     })();
     return () => {
@@ -102,13 +128,32 @@ export default function FleetPage() {
     };
   }, []);
 
-  // Text filter covers plate, type and size (exact values the user knows);
-  // status is the one collection select filter (§3.8: text + one select).
-  const filtered = trucks.filter((t) => {
-    if (status !== 'All' && t.status !== status) return false;
-    if (q && !`${t.plateNumber} ${t.truckType} ${t.truckSize ?? '6W'}`.toLowerCase().includes(q.toLowerCase())) return false;
-    return true;
-  });
+  // Any filter change restarts at page 1 with a fresh cursor stack.
+  useEffect(() => {
+    const stack: (string | null)[] = [null];
+    setPage(1);
+    setCursors(stack);
+    loadPage(1, stack, false, debouncedQ, status);
+  }, [debouncedQ, status, loadPage]);
+
+  const hasFilter = debouncedQ.trim() !== '' || status !== 'All';
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  function nextPage() {
+    if (!nextCursor) return;
+    const stack = [...cursors, nextCursor];
+    setCursors(stack);
+    const p = page + 1;
+    setPage(p);
+    loadPage(p, stack, false, debouncedQ, status);
+  }
+
+  function prevPage() {
+    if (page <= 1) return;
+    const p = page - 1;
+    setPage(p);
+    loadPage(p, cursors, false, debouncedQ, status);
+  }
   const selected = trucks.find((t) => t.truckId === selectedId) ?? null;
 
   function startEdit() {
@@ -181,10 +226,16 @@ export default function FleetPage() {
         <select className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Filter by status">
           {TRUCK_STATUSES.map((s) => <option key={s}>{s}</option>)}
         </select>
-        <span className="text-xs text-slate-500" role="status">{filtered.length} of {trucks.length}</span>
+        <span className="text-xs text-slate-500" role="status">{total} trucks</span>
       </div>
 
       {/* Trucks Table */}
+      {listErr && (
+        <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+          {listErr}{' '}
+          <button onClick={() => loadPage(page, cursors, false, debouncedQ, status)} className="font-medium underline hover:no-underline">Retry</button>
+        </div>
+      )}
       {loading ? (
         <TableSkeleton rows={5} cols={7} />
       ) : (
@@ -209,7 +260,7 @@ export default function FleetPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.map((t) => (
+              {trucks.map((t) => (
                 <tr key={t.truckId} className={`hover:bg-slate-50 transition-colors ${selectedId === t.truckId ? 'bg-amber-50/50' : ''}`}>
                   <td className="px-6 py-3 font-medium text-slate-900">{t.plateNumber}</td>
                   <td className="px-6 py-3 text-slate-600">{t.truckType}</td>
@@ -238,12 +289,12 @@ export default function FleetPage() {
                   </td>
                 </tr>
               ))}
-              {filtered.length === 0 && (
+              {trucks.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-6 py-8 text-center text-slate-400">
                     <div className="flex flex-col items-center gap-2">
-                      <p>{trucks.length === 0 ? 'No trucks in the fleet yet.' : 'No trucks match. Try a different search or filter.'}</p>
-                      {trucks.length > 0 && (
+                      <p>{total === 0 && !hasFilter ? 'No trucks in the fleet yet.' : 'No trucks match. Try a different search or filter.'}</p>
+                      {hasFilter && (
                         <button onClick={() => { setQ(''); setStatus('All'); }} className="btn-ghost mt-1 text-sm">Clear filter</button>
                       )}
                     </div>
@@ -254,6 +305,17 @@ export default function FleetPage() {
           </table>
         </div>
       </div>
+      )}
+      {!loading && total > PAGE_SIZE && (
+        <Pager
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          noun="trucks"
+          onPrev={prevPage}
+          onNext={nextPage}
+          hasNext={nextCursor !== null}
+        />
       )}
 
       {/* Vehicle details + edit */}

@@ -25,6 +25,52 @@ export function Card({ title, action, children, className = '' }: { title?: stri
 }
 
 /**
+ * Bottom pager for server-paginated tables (ARWAYS-UI-IMPROVEMENTS §3.7).
+ * Previous walks the cursor stack already fetched; Next follows nextCursor.
+ */
+export function Pager({
+  page,
+  totalPages,
+  total,
+  noun,
+  onPrev,
+  onNext,
+  hasNext,
+}: {
+  page: number;
+  totalPages: number | null;
+  total: number;
+  noun: string;
+  onPrev: () => void;
+  onNext: () => void;
+  hasNext: boolean;
+}) {
+  return (
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+      <p className="text-xs text-slate-500" role="status">
+        Page {page}{totalPages ? ` of ${totalPages}` : ''} · {total} {noun}
+      </p>
+      <div className="flex gap-2">
+        <button
+          onClick={onPrev}
+          disabled={page <= 1}
+          className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Previous
+        </button>
+        <button
+          onClick={onNext}
+          disabled={!hasNext}
+          className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
  * Loading skeletons (ARWAYS-UI-IMPROVEMENTS §3.3, GitLab [U11]).
  * - TableSkeleton: same row height and column layout as the loaded table.
  * - ListSkeleton: matching blocks for card lists.

@@ -1,16 +1,19 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Shell } from '@/components/Shell';
 import { api } from '@/lib/supabase';
 import { Icons } from '@/lib/createLucideIcon';
-import { errorMessage, type ClientRow, type UserRow } from '@/lib/types';
+import { errorMessage, type ClientRow, type Page, type UserRow } from '@/lib/types';
+import { Pager, TableSkeleton } from '@/components/saas';
+import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { emailHint, isEmailLike, passwordMissing } from '@/lib/errors';
 import { FieldHint, FormErrorBanner, PasswordChecklist, type FormErrorItem } from '@/components/FieldHint';
 import { StatusPill } from '@/components/StatusPill';
 import { SearchField } from '@/components/SearchField';
-import { TableSkeleton } from '@/components/saas';
 
 const ROLE_FILTERS = ['All', 'Owner', 'Secretary', 'Client', 'Driver'];
+
+const PAGE_SIZE = 20;
 
 export default function UsersPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -27,28 +30,73 @@ export default function UsersPage() {
   const [busy, setBusy] = useState(false);
   const [q, setQ] = useState('');
   const [roleFilter, setRoleFilter] = useState('All');
+  const debouncedQ = useDebouncedValue(q);
+  const [page, setPage] = useState(1);
+  const [cursors, setCursors] = useState<(string | null)[]>([null]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [listErr, setListErr] = useState('');
   const [resetId, setResetId] = useState('');
   const [newPw, setNewPw] = useState('');
   const [showNewPw, setShowNewPw] = useState(false);
   const [confirmDeactivateId, setConfirmDeactivateId] = useState('');
 
+  // Server-side search, filter and cursor pagination (§3.7). Returns the
+  // fetch promise so post-action refreshes can await the current page.
+  const loadPage = useCallback((p: number, stack: (string | null)[], silent: boolean, qq: string, rf: string) => {
+    if (!silent) setLoading(true);
+    setListErr('');
+    const params = new URLSearchParams({ limit: String(PAGE_SIZE) });
+    const cur = stack[p - 1];
+    if (cur) params.set('cursor', cur);
+    if (rf !== 'All') params.set('role', rf);
+    if (qq.trim()) params.set('q', qq.trim());
+    return api<Page<UserRow>>(`/users?${params.toString()}`)
+      .then((r) => {
+        setUsers(r.items);
+        setNextCursor(r.nextCursor);
+        setTotal(r.total);
+      })
+      .catch((e: unknown) => {
+        setListErr(errorMessage(e, 'Could not load users.'));
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
   async function reload() {
-    setUsers(await api<UserRow[]>('/users'));
+    await loadPage(page, cursors, true, debouncedQ, roleFilter);
   }
   useEffect(() => {
-    api<UserRow[]>('/users').then(setUsers).catch(() => {}).finally(() => setLoading(false));
     api<ClientRow[]>('/clients').then(setClients).catch(() => {});
   }, []);
 
-  const filtered = users.filter((u) => {
-    if (roleFilter !== 'All' && u.role !== roleFilter) return false;
-    if (q) {
-      const hay = `${u.fullName} ${u.email}`.toLowerCase();
-      if (!hay.includes(q.toLowerCase())) return false;
-    }
-    return true;
-  });
+  // Any filter change restarts at page 1 with a fresh cursor stack.
+  useEffect(() => {
+    const stack: (string | null)[] = [null];
+    setPage(1);
+    setCursors(stack);
+    loadPage(1, stack, false, debouncedQ, roleFilter);
+  }, [debouncedQ, roleFilter, loadPage]);
+
+  const hasFilter = debouncedQ.trim() !== '' || roleFilter !== 'All';
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  function nextPage() {
+    if (!nextCursor) return;
+    const stack = [...cursors, nextCursor];
+    setCursors(stack);
+    const p = page + 1;
+    setPage(p);
+    loadPage(p, stack, false, debouncedQ, roleFilter);
+  }
+
+  function prevPage() {
+    if (page <= 1) return;
+    const p = page - 1;
+    setPage(p);
+    loadPage(p, cursors, false, debouncedQ, roleFilter);
+  }
 
   async function create(e: React.FormEvent) {
     e.preventDefault(); setErr(''); setOkMsg(''); setServerErr(''); setEmailTouched(true);
@@ -138,10 +186,16 @@ export default function UsersPage() {
           <Icons.Users className="h-5 w-5 text-slate-400" />
           <h2 className="text-lg font-semibold text-slate-900">Team Members</h2>
         </div>
-        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
-          <span role="status">{filtered.length} of {users.length} members</span>
+        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600" role="status">
+          {total} members
         </span>
       </div>
+      {listErr && (
+        <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+          {listErr}{' '}
+          <button onClick={() => loadPage(page, cursors, false, debouncedQ, roleFilter)} className="font-medium underline hover:no-underline">Retry</button>
+        </div>
+      )}
 
       {/* Search + filter */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -182,7 +236,7 @@ export default function UsersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.map((u) => (
+              {users.map((u) => (
                 <tr key={u.userId} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-3 font-medium text-slate-900">
                     {u.fullName}
@@ -221,12 +275,12 @@ export default function UsersPage() {
                   </td>
                 </tr>
               ))}
-              {filtered.length === 0 && (
+              {users.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-6 py-8 text-center text-slate-400">
                     <div className="flex flex-col items-center gap-2">
-                      <p>{users.length === 0 ? 'No team members yet. Add the first one below.' : 'No users match. Try a different search or filter.'}</p>
-                      {users.length > 0 && (
+                      <p>{total === 0 && !hasFilter ? 'No team members yet. Add the first one below.' : 'No users match. Try a different search or filter.'}</p>
+                      {hasFilter && (
                         <button onClick={() => { setQ(''); setRoleFilter('All'); }} className="btn-ghost mt-1 text-sm">Clear filter</button>
                       )}
                     </div>
@@ -237,6 +291,17 @@ export default function UsersPage() {
           </table>
         </div>
       </div>
+      )}
+      {!loading && total > PAGE_SIZE && (
+        <Pager
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          noun="members"
+          onPrev={prevPage}
+          onNext={nextPage}
+          hasNext={nextCursor !== null}
+        />
       )}
 
       {/* Add User Form */}

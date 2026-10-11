@@ -5,41 +5,79 @@ import { Shell } from '@/components/Shell';
 import { CancelOrderSection } from '@/components/CancelOrder';
 import { api } from '@/lib/supabase';
 import { Icons } from '@/lib/createLucideIcon';
-import { errorMessage, type Order, type OrderDetail } from '@/lib/types';
+import { errorMessage, type Order, type OrderDetail, type Page } from '@/lib/types';
 import { PriorityBadge } from '@/components/PriorityBadge';
 import { StatusPill } from '@/components/StatusPill';
 import { SearchField } from '@/components/SearchField';
-import { TableSkeleton } from '@/components/saas';
+import { Pager, TableSkeleton } from '@/components/saas';
+import { useDebouncedValue } from '@/lib/useDebouncedValue';
 
 const STATUSES = ['All', 'Pending', 'Approved', 'In Transit', 'Completed', 'Rejected', 'Cancelled'];
+
+const PAGE_SIZE = 20;
 
 export default function OwnerOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('All');
+  const debouncedQ = useDebouncedValue(q);
   const [detail, setDetail] = useState<OrderDetail | { error: string } | null>(null);
   const [detailId, setDetailId] = useState('');
+  const [page, setPage] = useState(1);
+  const [cursors, setCursors] = useState<(string | null)[]>([null]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const loadOrders = useCallback(() => {
-    api<Order[]>('/orders').then(setOrders).catch(() => {}).finally(() => setLoading(false));
-  }, []);
-  useEffect(() => {
-    let live = true;
-    api<Order[]>('/orders')
-      .then((list) => {
-        if (live) setOrders(list);
+  const [listErr, setListErr] = useState('');
+
+  // Server-side search, filter and cursor pagination (§3.7). Silent reloads
+  // (after an action) keep the current rows on screen.
+  const loadPage = useCallback((p: number, stack: (string | null)[], silent: boolean, qq: string, st: string) => {
+    if (!silent) setLoading(true);
+    setListErr('');
+    const params = new URLSearchParams({ limit: String(PAGE_SIZE) });
+    const cur = stack[p - 1];
+    if (cur) params.set('cursor', cur);
+    if (st !== 'All') params.set('status', st);
+    if (qq.trim()) params.set('q', qq.trim());
+    api<Page<Order>>(`/orders?${params.toString()}`)
+      .then((r) => {
+        setOrders(r.items);
+        setNextCursor(r.nextCursor);
+        setTotal(r.total);
       })
-      .catch(() => {});
-    return () => {
-      live = false;
-    };
+      .catch((e: unknown) => {
+        setListErr(errorMessage(e, 'Could not load orders.'));
+      })
+      .finally(() => setLoading(false));
   }, []);
 
-  const filtered = orders.filter((o) => {
-    if (status !== 'All' && o.status !== status) return false;
-    if (q && !o.orderReference.toLowerCase().includes(q.toLowerCase())) return false;
-    return true;
-  });
+  // Any filter change restarts at page 1 with a fresh cursor stack.
+  useEffect(() => {
+    const stack: (string | null)[] = [null];
+    setPage(1);
+    setCursors(stack);
+    loadPage(1, stack, false, debouncedQ, status);
+  }, [debouncedQ, status, loadPage]);
+
+  const hasFilter = debouncedQ.trim() !== '' || status !== 'All';
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  function nextPage() {
+    if (!nextCursor) return;
+    const stack = [...cursors, nextCursor];
+    setCursors(stack);
+    const p = page + 1;
+    setPage(p);
+    loadPage(p, stack, false, debouncedQ, status);
+  }
+
+  function prevPage() {
+    if (page <= 1) return;
+    const p = page - 1;
+    setPage(p);
+    loadPage(p, cursors, false, debouncedQ, status);
+  }
 
   async function openDetail(id: string) {
     if (detailId === id) { setDetailId(''); setDetail(null); return; }
@@ -61,7 +99,7 @@ export default function OwnerOrdersPage() {
   }
 
   function refreshAfterAction(orderId: string) {
-    loadOrders();
+    loadPage(page, cursors, true, debouncedQ, status);
     reloadDetail(orderId);
   }
 
@@ -84,8 +122,15 @@ export default function OwnerOrdersPage() {
         >
           {STATUSES.map((s) => <option key={s}>{s}</option>)}
         </select>
-        <span className="text-xs text-slate-500" role="status">{filtered.length} of {orders.length}</span>
+        <span className="text-xs text-slate-500" role="status">{total} orders</span>
       </div>
+
+      {listErr && (
+        <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+          {listErr}{' '}
+          <button onClick={() => loadPage(page, cursors, false, debouncedQ, status)} className="font-medium underline hover:no-underline">Retry</button>
+        </div>
+      )}
 
       {loading ? (
         <TableSkeleton rows={5} cols={6} />
@@ -104,7 +149,7 @@ export default function OwnerOrdersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.map((o) => (
+              {orders.map((o) => (
                 <Fragment key={o.orderId}>
                   <tr className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-3 font-medium text-slate-900">{o.orderReference}</td>
@@ -165,10 +210,10 @@ export default function OwnerOrdersPage() {
                   )}
                 </Fragment>
               ))}
-              {filtered.length === 0 && (
+              {orders.length === 0 && (
                 <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-400">
-                  <p>{orders.length === 0 ? 'No orders yet.' : 'No orders match. Try a different search or filter.'}</p>
-                  {orders.length > 0 && (
+                  <p>{total === 0 && !hasFilter ? 'No orders yet.' : 'No orders match. Try a different search or filter.'}</p>
+                  {hasFilter && (
                     <button onClick={() => { setQ(''); setStatus('All'); }} className="btn-ghost mt-3 text-sm">Clear filter</button>
                   )}
                 </td></tr>
@@ -177,6 +222,17 @@ export default function OwnerOrdersPage() {
           </table>
         </div>
       </div>
+      )}
+      {!loading && total > PAGE_SIZE && (
+        <Pager
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          noun="orders"
+          onPrev={prevPage}
+          onNext={nextPage}
+          hasNext={nextCursor !== null}
+        />
       )}
     </Shell>
   );

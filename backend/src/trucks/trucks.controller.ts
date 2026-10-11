@@ -1,6 +1,6 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { Inject, BadRequestException } from '@nestjs/common';
-import { and, desc, eq } from 'drizzle-orm';
+import { SQL, and, count, desc, eq, ilike, or } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { DB } from '../db/db.module.js';
 import * as schema from '../db/schema.js';
@@ -8,6 +8,7 @@ import { JwtAuthGuard } from '../common/jwt-auth.guard.js';
 import { RolesGuard } from '../common/roles.guard.js';
 import { Roles } from '../common/roles.decorator.js';
 import { TRUCK_STATUSES, TRUCK_TYPES, assertIn, assertNonEmpty, assertPositiveInt } from '../common/validate.js';
+import { encodeCursor, escapeLike, keysetBefore, parseCursor, parseLimit, type Page } from '../common/pagination.js';
 
 export type DriverAvailability = 'Available' | 'On Trip' | 'Standby' | 'Unassigned';
 
@@ -52,9 +53,44 @@ export class TrucksController {
 
   @Get()
   @Roles('Owner', 'Secretary', 'Client')
-  async list() {
-    const rows = await this.db.select().from(schema.trucks);
-    return withDriverInfo(this.db, rows as any[]);
+  async list(
+    @Query('q') q?: string,
+    @Query('status') status?: string,
+    @Query('limit') limitRaw?: string,
+    @Query('cursor') cursorRaw?: string,
+  ): Promise<any[] | Page<any>> {
+    // Text filter covers plate, type and size (exact values the user knows);
+    // status is the one collection select filter. Full collection, server-side.
+    const conds: (SQL<unknown> | undefined)[] = [];
+    if (status && status !== 'All') conds.push(eq(schema.trucks.status, assertIn(status, TRUCK_STATUSES, 'Status')));
+    const needle = (q ?? '').trim();
+    if (needle) {
+      const like = `%${escapeLike(needle)}%`;
+      conds.push(or(ilike(schema.trucks.plateNumber, like), ilike(schema.trucks.truckType, like), ilike(schema.trucks.truckSize, like)));
+    }
+    if (limitRaw === undefined) {
+      // Legacy shape (pickers, header search, dashboards): full array.
+      const rows = await this.db.select().from(schema.trucks);
+      return withDriverInfo(this.db, rows as any[]);
+    }
+    // Paginated shape for tables: keyset over (created_at DESC, truck_id DESC).
+    const limit = parseLimit(limitRaw);
+    const where = and(...conds);
+    const pageWhere = and(...conds, keysetBefore(schema.trucks.createdAt, schema.trucks.truckId, parseCursor(cursorRaw)));
+    const rows: any[] = await this.db
+      .select()
+      .from(schema.trucks)
+      .where(pageWhere)
+      .orderBy(desc(schema.trucks.createdAt), desc(schema.trucks.truckId))
+      .limit(limit + 1);
+    const [{ n }] = await this.db.select({ n: count() }).from(schema.trucks).where(where);
+    const items = await withDriverInfo(this.db, rows.slice(0, limit) as any[]);
+    const last: any = rows[Math.min(rows.length, limit) - 1];
+    return {
+      items,
+      nextCursor: rows.length > limit && last && last.createdAt != null ? encodeCursor(last.createdAt, last.truckId) : null,
+      total: Number(n),
+    };
   }
 
   @Get('available')
