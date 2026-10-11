@@ -4,6 +4,7 @@ import { Shell } from '@/components/Shell';
 import { api } from '@/lib/supabase';
 import { useRealtime } from '@/lib/realtime';
 import { Icons } from '@/lib/createLucideIcon';
+import { StatusPill } from '@/components/StatusPill';
 import { errorMessage, type RouteFull, type StopRow } from '@/lib/types';
 
 const STATUS_FILTERS = ['All', 'Pending', 'In Progress', 'Completed'];
@@ -94,11 +95,7 @@ export default function MonitoringPage() {
                 <h2 className="text-base font-semibold text-slate-900">
                   {r.route.routeNumber} · {r.driverName} · {r.truckPlate}
                 </h2>
-                <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                  r.route.status === 'Completed' ? 'bg-green-50 text-green-700' :
-                  r.route.status === 'In Progress' ? 'bg-blue-50 text-blue-700' :
-                  'bg-slate-100 text-slate-600'
-                }`}>{r.route.status}</span>
+                <StatusPill status={r.route.status} />
               </div>
               <p className="mt-1 text-xs text-slate-500">Order {r.orderReference} ({r.orderStatus})</p>
               <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
@@ -119,7 +116,7 @@ export default function MonitoringPage() {
                 {r.stops.map((s, i: number) => (
                   <li key={s.stopId} className="flex gap-3">
                     <span className="flex flex-col items-center">
-                      <span className={`mt-1.5 h-2.5 w-2.5 rounded-full ${
+                      <span aria-hidden className={`mt-1.5 h-2.5 w-2.5 rounded-full ${
                         s.status === 'Delivered' ? 'bg-green-500' :
                         s.status === 'Failed' ? 'bg-red-500' :
                         ['Arrived', 'Departed'].includes(s.status) ? 'bg-blue-500' : 'bg-slate-300'

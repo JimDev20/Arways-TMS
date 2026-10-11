@@ -6,6 +6,7 @@ import { Icons } from '@/lib/createLucideIcon';
 import { errorMessage, type ClientRow, type UserRow } from '@/lib/types';
 import { emailHint, isEmailLike, passwordMissing } from '@/lib/errors';
 import { FieldHint, FormErrorBanner, PasswordChecklist, type FormErrorItem } from '@/components/FieldHint';
+import { StatusPill } from '@/components/StatusPill';
 
 const ROLE_FILTERS = ['All', 'Owner', 'Secretary', 'Client', 'Driver'];
 
@@ -195,11 +196,7 @@ export default function UsersPage() {
                     </span>
                   </td>
                   <td className="px-6 py-3">
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                      u.status === 'Active' ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-500'
-                    }`}>
-                      {u.status ?? 'Active'}
-                    </span>
+                    <StatusPill status={u.status ?? 'Active'} />
                   </td>
                   <td className="px-6 py-3 text-right whitespace-nowrap">
                     <button

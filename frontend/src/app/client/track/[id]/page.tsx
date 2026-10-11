@@ -7,6 +7,7 @@ import { coordsOf, navigateHref, phPinError, type MapPin } from '@/lib/map';
 import { api } from '@/lib/supabase';
 import { useRealtime } from '@/lib/realtime';
 import { Icons } from '@/lib/createLucideIcon';
+import { StatusPill } from '@/components/StatusPill';
 import { errorMessage, type OrderDetail } from '@/lib/types';
 
 const MapView = dynamic(() => import('@/components/MapView').then((m) => m.MapView), { ssr: false });
@@ -108,7 +109,7 @@ export default function TrackPage({ params }: { params: Promise<{ id: string }> 
           <div className="rounded-xl bg-white p-6 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-semibold text-slate-900">{detail.order.orderReference}</h2>
-              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">{detail.order.status}</span>
+              <StatusPill status={detail.order.status} />
             </div>
             <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
               <div>
@@ -138,7 +139,7 @@ export default function TrackPage({ params }: { params: Promise<{ id: string }> 
               {steps.map((s, i) => (
                 <li key={s.label} className="flex gap-3">
                   <span className="flex flex-col items-center">
-                    <span className={`mt-1.5 h-2.5 w-2.5 rounded-full ${s.done ? 'bg-green-500' : 'bg-slate-300'}`} />
+                    <span aria-hidden className={`mt-1.5 h-2.5 w-2.5 rounded-full ${s.done ? 'bg-green-500' : 'bg-slate-300'}`} />
                     {i < steps.length - 1 && <span className="w-px flex-1 bg-slate-200" />}
                   </span>
                   <span className="pb-3 text-sm">
@@ -205,7 +206,7 @@ export default function TrackPage({ params }: { params: Promise<{ id: string }> 
                 <li key={s.stopId} className="py-3">
                   <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
                     <span className="font-medium text-slate-900">#{s.stopSequence} {s.stopType} · {s.locationAddress}</span>
-                    <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">{s.status}</span>
+                    <StatusPill status={s.status} />
                   </div>
                   {s.driverNotes && <p className="mt-1 text-sm text-slate-600">Driver note: “{s.driverNotes}”</p>}
                   {s.receiptPhotoUrl && (

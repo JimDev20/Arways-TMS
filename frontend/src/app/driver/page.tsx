@@ -7,6 +7,7 @@ import { useRealtime } from '@/lib/realtime';
 import { errorMessage, gmapsUrl, type DriverRoute, type OrderDetail, type OrderDetailClient, type StopRow } from '@/lib/types';
 import { coordsOf, type MapPin } from '@/lib/map';
 import { Icons } from '@/lib/createLucideIcon';
+import { StatusPill } from '@/components/StatusPill';
 
 const MapView = dynamic(() => import('@/components/MapView').then((m) => m.MapView), { ssr: false });
 
@@ -400,14 +401,7 @@ export default function DriverHome() {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-lg font-bold text-slate-900">Route {route.routeNumber}</span>
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        route.status === 'Pending' ? 'bg-amber-50 text-amber-700' :
-                        route.status === 'In Progress' ? 'bg-blue-50 text-blue-700' :
-                        route.status === 'Completed' ? 'bg-green-50 text-green-700' :
-                        'bg-slate-100 text-slate-700'
-                      }`}>
-                        {route.status}
-                      </span>
+                      <StatusPill status={route.status} />
                     </div>
                   </div>
                 </div>
@@ -512,16 +506,9 @@ export default function DriverHome() {
                           </span>
                           <span className="font-medium text-slate-900">{s.locationAddress}</span>
                         </div>
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          s.status === 'Pending' ? 'bg-slate-100 text-slate-700' :
-                          s.status === 'Arrived' ? 'bg-blue-50 text-blue-700' :
-                          s.status === 'Departed' ? 'bg-slate-200 text-slate-700' :
-                          s.status === 'Delivered' ? 'bg-green-50 text-green-700' :
-                          s.status === 'Failed' ? 'bg-red-50 text-red-700' :
-                          'bg-slate-100 text-slate-700'
-                        }`}>
+                        <StatusPill status={s.status}>
                           {s.status} · {s.stopType}
-                        </span>
+                        </StatusPill>
                         <p className="mt-1 text-xs text-slate-500">
                           Arrived: {fmtTime(s.arrivedAt)}{s.stopType === 'Dropoff' ? ` · Delivered: ${fmtTime(s.deliveredAt)}` : ''}
                           {s.timeWindowStart ? ` · Window ${String(s.timeWindowStart).slice(0, 5)}–${String(s.timeWindowEnd ?? '').slice(0, 5)}` : ''}
