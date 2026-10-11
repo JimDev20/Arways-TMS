@@ -69,6 +69,33 @@ export function assertEmail(value: unknown, label: string): string {
   return v;
 }
 
+/**
+ * Password strength: single source of truth for register + Owner reset.
+ * Length + character classes + deny-list. Login never checks these so
+ * pre-policy passwords keep working; only new passwords must qualify.
+ */
+export const PASSWORD_DENY_LIST = ['password', 'password123', '1234567890', 'qwerty12345', 'arways12345', 'letmein1234'];
+
+export function passwordMissing(pw: string): string[] {
+  const missing: string[] = [];
+  if (pw.length < 10 || pw.length > 64) missing.push('10–64 characters');
+  if (!/[a-z]/.test(pw)) missing.push('one lowercase letter (a–z)');
+  if (!/[A-Z]/.test(pw)) missing.push('one uppercase letter (A–Z)');
+  if (!/\d/.test(pw)) missing.push('one number (0–9)');
+  if (!/[^A-Za-z0-9]/.test(pw)) missing.push('one special character (e.g. !@#$)');
+  return missing;
+}
+
+export function assertPassword(pw: unknown, label = 'Password'): string {
+  if (typeof pw !== 'string' || !pw) throw new BadRequestException(`${label} is empty. Type a password.`);
+  const missing = passwordMissing(pw);
+  if (missing.length > 0) throw new BadRequestException(`${label} must include ${missing.join(', ')}.`);
+  if (PASSWORD_DENY_LIST.some((d) => pw.toLowerCase().includes(d))) {
+    throw new BadRequestException('That password is too common. Pick a less predictable passphrase.');
+  }
+  return pw;
+}
+
 /** Text fields: shared max lengths (Security Playbook: every text field capped). */
 export const TEXT_LIMITS = {
   address: 300,

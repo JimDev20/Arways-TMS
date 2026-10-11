@@ -10,7 +10,7 @@ import { RolesGuard } from '../common/roles.guard.js';
 import { Roles } from '../common/roles.decorator.js';
 import { CurrentUser } from '../common/current-user.decorator.js';
 import type { JwtPayload } from '../common/roles.js';
-import { USER_STATUSES, assertIn } from '../common/validate.js';
+import { USER_STATUSES, assertIn, assertPassword } from '../common/validate.js';
 
 function withoutSecrets(users: any[]) {
   return users.map((u: any) => {
@@ -58,9 +58,7 @@ export class UsersController {
   @Patch(':id/password')
   @Roles('Owner')
   async resetPassword(@Param('id') id: string, @Body() body: { password: string }) {
-    if (!body?.password || body.password.length < 10 || body.password.length > 64) {
-      throw new BadRequestException('New password must be 10–64 characters long.');
-    }
+    assertPassword(body?.password, 'New password');
     const rows: any[] = await this.db.select().from(schema.users).where(eq(schema.users.userId, id)).limit(1);
     if (!rows[0]) throw new BadRequestException('User not found. Refresh the user list.');
     const passwordHash = await bcrypt.hash(body.password, 12);

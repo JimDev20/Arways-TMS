@@ -138,10 +138,34 @@ const EXACT: Record<string, string> = {
   'Failure reason required':
     'A reason is required when marking a stop Failed. Type the reason first.',
   'Rejection reason required':
-    'A rejection reason is required. Type why the order is rejected first.',
-  'New password must be 10–64 characters long.':
-    'The new password must be 10–64 characters long. Type a longer passphrase and try again.',
+    'A rejection reason is required. Type why this order is rejected first.',
 };
+
+/**
+ * Password strength mirror of the backend policy (backend
+ * common/validate.ts passwordMissing): identical labels and regexes, so the
+ * live checklist and submit errors name exactly what the server enforces.
+ * Login never uses these (pre-policy passwords keep working there).
+ */
+export interface PasswordRule {
+  key: 'length' | 'lower' | 'upper' | 'digit' | 'special';
+  label: string;
+  met: boolean;
+}
+
+export function passwordRules(pw: string): PasswordRule[] {
+  return [
+    { key: 'length', label: '10–64 characters', met: pw.length >= 10 && pw.length <= 64 },
+    { key: 'lower', label: 'one lowercase letter (a–z)', met: /[a-z]/.test(pw) },
+    { key: 'upper', label: 'one uppercase letter (A–Z)', met: /[A-Z]/.test(pw) },
+    { key: 'digit', label: 'one number (0–9)', met: /\d/.test(pw) },
+    { key: 'special', label: 'one special character (e.g. !@#$)', met: /[^A-Za-z0-9]/.test(pw) },
+  ];
+}
+
+export function passwordMissing(pw: string): string[] {
+  return passwordRules(pw).filter((r) => !r.met).map((r) => r.label);
+}
 
 /**
  * Live field checks for real-time validation as the user types (HCI: show

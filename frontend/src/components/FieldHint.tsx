@@ -1,5 +1,6 @@
 'use client';
 import { Icons } from '@/lib/createLucideIcon';
+import { passwordRules } from '@/lib/errors';
 
 /**
  * Inline field hint (HCI 1D: online instructions + specific errors).
@@ -36,6 +37,31 @@ export interface FormErrorItem {
  * One line per problem, each linking to its field. Mounts only when there
  * are errors and moves focus to itself so screen readers announce it.
  */
+/**
+ * Live password-strength checklist: every requirement names its own state,
+ * so a password typed without lowercase says exactly that ("Missing: One
+ * lowercase letter (a–z)"). Mirrors the backend policy; identical labels.
+ */
+export function PasswordChecklist({ password, id }: { password: string; id: string }) {
+  const rules = passwordRules(password);
+  return (
+    <div id={id}>
+      {!password && (
+        <p className="text-xs text-slate-400">Use 10–64 characters with lowercase, uppercase, a number, and a special character.</p>
+      )}
+      {password !== '' && (
+        <ul className="space-y-0.5 text-xs">
+          {rules.map((r) => (
+            <li key={r.key} className={r.met ? 'text-green-700' : 'text-slate-400'}>
+              {r.met ? 'Met: ' : 'Missing: '}{r.label}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export function FormErrorBanner({ errors }: { errors: FormErrorItem[] }) {
   if (errors.length === 0) return null;
   return (

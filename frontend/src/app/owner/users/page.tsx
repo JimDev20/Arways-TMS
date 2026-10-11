@@ -4,8 +4,8 @@ import { Shell } from '@/components/Shell';
 import { api } from '@/lib/supabase';
 import { Icons } from '@/lib/createLucideIcon';
 import { errorMessage, type ClientRow, type UserRow } from '@/lib/types';
-import { emailHint, isEmailLike, passwordHint } from '@/lib/errors';
-import { FieldHint, FormErrorBanner, type FormErrorItem } from '@/components/FieldHint';
+import { emailHint, isEmailLike, passwordMissing } from '@/lib/errors';
+import { FieldHint, FormErrorBanner, PasswordChecklist, type FormErrorItem } from '@/components/FieldHint';
 
 const ROLE_FILTERS = ['All', 'Owner', 'Secretary', 'Client', 'Driver'];
 
@@ -51,7 +51,8 @@ export default function UsersPage() {
     else if (!isEmailLike(form.email)) problems.push({ fieldId: 'new-user-email', message: `“${form.email.trim()}” does not look like an email. It must look like name@example.com.` });
     if (!form.phone.trim()) problems.push({ fieldId: 'new-user-phone', message: 'Enter the member’s contact number. Dispatch and drivers need it.' });
     else if (!/^[+\d][\d\s\-()]{6,19}$/.test(form.phone.trim())) problems.push({ fieldId: 'new-user-phone', message: `“${form.phone.trim()}” does not look like a phone number. Use 7–20 characters: digits, spaces, +, -.` });
-    if (form.password.length < 10) problems.push({ fieldId: 'new-user-password', message: `Password is ${form.password.length}/10 characters. Type at least 10 characters (max 64).` });
+    const pwMissing = passwordMissing(form.password);
+    if (pwMissing.length > 0) problems.push({ fieldId: 'new-user-password', message: `Password must include ${pwMissing.join(', ')}.` });
     if (form.role === 'Client' && !form.clientId) problems.push({ fieldId: 'new-user-client', message: 'Pick the client company this login belongs to, so their orders and tracking link up.' });
     setFieldErrors(problems);
     if (problems.length > 0) return;
@@ -109,7 +110,8 @@ export default function UsersPage() {
     e.preventDefault(); setErr(''); setOkMsg('');
     const target = users.find((u) => u.userId === resetId);
     if (!target) { setErr('Pick a team member first.'); return; }
-    if (newPw.length < 10) { setErr(`The new password for ${target.email} must be at least 10 characters long.`); return; }
+    const resetMissing = passwordMissing(newPw);
+    if (resetMissing.length > 0) { setErr(`New password must include ${resetMissing.join(', ')}.`); return; }
     setBusy(true);
     try {
       await api(`/users/${target.userId}/password`, { method: 'PATCH', body: JSON.stringify({ password: newPw }) });
@@ -291,7 +293,7 @@ export default function UsersPage() {
             {fieldErr('new-user-phone') && <FieldHint id="new-user-phone-error" tone="error">{fieldErr('new-user-phone')}</FieldHint>}
           </div>
           <div className="grid gap-2">
-            <label className="block text-sm font-medium text-slate-700" htmlFor="new-user-password">Password (min 10 characters) *</label>
+            <label className="block text-sm font-medium text-slate-700" htmlFor="new-user-password">Password *</label>
             <div className="relative">
               <input
                 id="new-user-password"
@@ -303,7 +305,7 @@ export default function UsersPage() {
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
                 required
-                minLength={8}
+                minLength={10}
               />
               <button
                 type="button"
@@ -315,9 +317,9 @@ export default function UsersPage() {
                 {showPassword ? <Icons.EyeOff className="h-4 w-4" /> : <Icons.Eye className="h-4 w-4" />}
               </button>
             </div>
-            <FieldHint id="new-user-password-hint" tone={fieldErr('new-user-password') || (form.password && form.password.length < 8) ? 'error' : 'hint'}>
-              {fieldErr('new-user-password') ?? (form.password ? (passwordHint(form.password) || 'Meets the 10-character rule.') : 'Use at least 10 characters. Share it once, privately, so they can log in.')}
-            </FieldHint>
+            {fieldErr('new-user-password') && <FieldHint id="new-user-password-submit-error" tone="error">{fieldErr('new-user-password')}</FieldHint>}
+            <PasswordChecklist password={form.password} id="new-user-password-hint" />
+            <p className="text-xs text-slate-400">Share it once, privately, so they can log in.</p>
           </div>
           <div className="grid gap-2">
             <label className="block text-sm font-medium text-slate-700" htmlFor="new-user-role">Role</label>
@@ -387,7 +389,7 @@ export default function UsersPage() {
           </div>
           <form onSubmit={resetPassword} className="grid gap-4 max-w-lg">
             <div className="grid gap-2">
-              <label className="block text-sm font-medium text-slate-700" htmlFor="reset-pw">New password (min 10 characters) *</label>
+              <label className="block text-sm font-medium text-slate-700" htmlFor="reset-pw">New password *</label>
               <div className="relative">
                 <input id="reset-pw"
                   type={showNewPw ? 'text' : 'password'}
@@ -397,11 +399,9 @@ export default function UsersPage() {
                   placeholder="••••••••"
                   value={newPw}
                   onChange={(e) => setNewPw(e.target.value)}
-                  required minLength={8}
+                  required minLength={10}
                 />
-                <FieldHint id="reset-pw-hint" tone={newPw && newPw.length < 10 ? 'error' : 'hint'}>
-                  {newPw ? (passwordHint(newPw) || 'Meets the 10-character rule.') : 'Use at least 10 characters. The member logs in with this password next time.'}
-                </FieldHint>
+                <PasswordChecklist password={newPw} id="reset-pw-hint" />
                 <button type="button" onClick={() => setShowNewPw((v) => !v)}
                   aria-label={showNewPw ? 'Hide password' : 'Show password'}
                   aria-pressed={showNewPw}
