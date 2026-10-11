@@ -17,6 +17,7 @@ export default function OwnerClientsPage() {
   const [busy, setBusy] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FormErrorItem[]>([]);
   const fieldErr = (id: string) => fieldErrors.find((e) => e.fieldId === id)?.message;
+  const [emailTouched, setEmailTouched] = useState(false);
 
   async function reload() {
     setClients(await api<ClientRow[]>('/clients'));
@@ -26,7 +27,7 @@ export default function OwnerClientsPage() {
   }, []);
 
   async function create(e: React.FormEvent) {
-    e.preventDefault(); setErr(''); setOkMsg('');
+    e.preventDefault(); setErr(''); setOkMsg(''); setEmailTouched(true);
     const problems: FormErrorItem[] = [];
     if (!form.companyName.trim()) problems.push({ fieldId: 'client-company', message: 'Company name is empty. Type the client company name.' });
     if (!form.email.trim()) problems.push({ fieldId: 'client-email', message: 'Email is empty. Type the client contact email.' });
@@ -121,7 +122,6 @@ export default function OwnerClientsPage() {
 
       <div className="mt-6 rounded-xl bg-white p-6 shadow-sm">
         <h2 className="mb-4 text-lg font-semibold text-slate-900">Add Client Company</h2>
-        {err && <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center gap-2" role="alert"><Icons.AlertCircle className="h-5 w-5 shrink-0" />{err}</div>}
         {okMsg && <div className="mb-4 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700 flex items-center gap-2" role="status"><Icons.CheckCircle className="h-5 w-5 shrink-0" />{okMsg}</div>}
         <FormErrorBanner errors={fieldErrors} />
         <form onSubmit={create} className="grid gap-4 max-w-lg">
@@ -142,8 +142,8 @@ export default function OwnerClientsPage() {
           </div>
           <div className="grid gap-2">
             <label className="block text-sm font-medium text-slate-700" htmlFor="client-email">Email *</label>
-            <input id="client-email" type="email" aria-describedby={(fieldErr('client-email') || emailHint(form.email)) ? 'client-email-hint' : undefined} className={input} value={form.email} onChange={set('email')} required placeholder="dispatch@company.com" />
-            {(fieldErr('client-email') || emailHint(form.email)) && <FieldHint id="client-email-hint" tone="error">{fieldErr('client-email') || emailHint(form.email)}</FieldHint>}
+            <input id="client-email" type="email" aria-describedby={(fieldErr('client-email') || (emailTouched && emailHint(form.email))) ? 'client-email-hint' : undefined} className={input} value={form.email} onChange={set('email')} onBlur={() => setEmailTouched(true)} required placeholder="dispatch@company.com" />
+            {(fieldErr('client-email') || (emailTouched && emailHint(form.email))) && <FieldHint id="client-email-hint" tone="error">{fieldErr('client-email') || emailHint(form.email)}</FieldHint>}
           </div>
           <div className="grid gap-2">
             <label className="block text-sm font-medium text-slate-700" htmlFor="client-address">Dispatch Area Address *</label>
@@ -170,6 +170,7 @@ export default function OwnerClientsPage() {
             <label className="block text-sm font-medium text-slate-700">Dispatcher Contact</label>
             <input className={input} value={form.dispatcherContact} onChange={set('dispatcherContact')} placeholder="Pedro Santos 09181234567" />
           </div>
+          {err && <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center gap-2" role="alert"><Icons.AlertCircle className="h-5 w-5 shrink-0" />{err}</div>}
           <button type="submit" disabled={busy}
             className="w-full rounded-lg bg-[#0e7a70] py-2.5 text-sm font-semibold text-white hover:bg-[#0b625a] disabled:opacity-60 disabled:cursor-not-allowed">
             {busy ? 'Adding…' : 'Add Client'}

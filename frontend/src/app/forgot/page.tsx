@@ -15,9 +15,11 @@ export default function ForgotPage() {
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
+  const [touched, setTouched] = useState(false);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
+    setTouched(true);
     // Shape check only: never reveal whether the address exists.
     if (!isEmailLike(email)) {
       setError('That email does not look complete. It must look like name@example.com.');
@@ -49,11 +51,12 @@ export default function ForgotPage() {
                   required
                   value={email}
                   onChange={(e) => { setEmail(e.target.value); setError(''); }}
-                  aria-describedby="forgot-email-hint"
+                  onBlur={() => setTouched(true)}
+                  aria-describedby={touched && emailHint(email) ? 'forgot-email-hint' : undefined}
                   className="field"
                   placeholder="you@company.com"
                 />
-                {emailHint(email) && <div className="mt-1"><FieldHint id="forgot-email-hint" tone="error">{emailHint(email)}</FieldHint></div>}
+                {touched && emailHint(email) && <div className="mt-1"><FieldHint id="forgot-email-hint" tone="error">{emailHint(email)}</FieldHint></div>}
               </div>
               {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
               <button className="btn-primary w-full" type="submit">Send reset link</button>

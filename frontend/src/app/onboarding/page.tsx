@@ -33,9 +33,11 @@ export default function OnboardingPage() {
   const [agree, setAgree] = useState(false);
   const [theme, setTheme] = useState('light');
   const [error, setError] = useState('');
+  const [phoneTouched, setPhoneTouched] = useState(false);
 
   function next() {
     setError('');
+    setPhoneTouched(true);
     if (step === 0) {
       if (!fullName.trim()) {
         setError('Full name is empty. Type your name as it should appear to dispatch.');
@@ -99,8 +101,8 @@ export default function OnboardingPage() {
               </div>
               <div>
                 <label htmlFor="ob-phone" className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Phone number</label>
-                <input id="ob-phone" className="field" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="09171234567" inputMode="tel" aria-describedby={ph ? 'ob-phone-hint' : undefined} />
-                {ph ? <div className="mt-1"><FieldHint id="ob-phone-hint" tone={phTone}>{ph}</FieldHint></div> : null}
+                <input id="ob-phone" className="field" value={phone} onChange={(e) => setPhone(e.target.value)} onBlur={() => setPhoneTouched(true)} placeholder="09171234567" inputMode="tel" aria-describedby={phoneTouched && ph ? 'ob-phone-hint' : undefined} />
+                {phoneTouched && ph ? <div className="mt-1"><FieldHint id="ob-phone-hint" tone={phTone}>{ph}</FieldHint></div> : null}
               </div>
               <div>
                 <span className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Profile photo</span>
