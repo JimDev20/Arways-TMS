@@ -1,10 +1,12 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Shell } from '@/components/Shell';
 import { DriverBadge } from '@/components/DriverBadge';
 import { api } from '@/lib/supabase';
 import { Icons } from '@/lib/createLucideIcon';
-import { errorMessage, type MaintenanceLog, type TruckWithDriver } from '@/lib/types';
+import { errorMessage, type MaintenanceLog, type Page, type TruckWithDriver } from '@/lib/types';
+import { Pager, TableSkeleton } from '@/components/saas';
+import { useDebouncedValue } from '@/lib/useDebouncedValue';
 
 /**
  * Secretary Fleet (Improvement Roadmap #10).
@@ -12,11 +14,18 @@ import { errorMessage, type MaintenanceLog, type TruckWithDriver } from '@/lib/t
  * gives dispatchers the fleet view: list + filters + vehicle detail +
  * maintenance log + record service. Truck add/assignment stays on Owner Fleet.
  */
+const PAGE_SIZE = 20;
 export default function SecretaryFleetPage() {
   const [trucks, setTrucks] = useState<TruckWithDriver[]>([]);
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('All');
-  const [err, setErr] = useState('');
+  const debouncedQ = useDebouncedValue(q);
+  const [page, setPage] = useState(1);
+  const [cursors, setCursors] = useState<(string | null)[]>([null]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [listErr, setListErr] = useState('');
   const [selectedId, setSelectedId] = useState('');
   const [maint, setMaint] = useState<MaintenanceLog[]>([]);
   const [mDate, setMDate] = useState(new Date().toISOString().slice(0, 10));
@@ -25,13 +34,52 @@ export default function SecretaryFleetPage() {
   const [mMsg, setMMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [mBusy, setMBusy] = useState(false);
 
-  useEffect(() => {
-    let live = true;
-    api<TruckWithDriver[]>('/trucks')
-      .then((t) => { if (live) setTrucks(t); })
-      .catch((e) => { if (live) setErr(errorMessage(e, 'Could not load fleet.')); });
-    return () => { live = false; };
+  // Server-side search, filter and cursor pagination (§3.7).
+  const loadPage = useCallback((p: number, stack: (string | null)[], silent: boolean, qq: string, st: string) => {
+    if (!silent) setLoading(true);
+    setListErr('');
+    const params = new URLSearchParams({ limit: String(PAGE_SIZE) });
+    const cur = stack[p - 1];
+    if (cur) params.set('cursor', cur);
+    if (st !== 'All') params.set('status', st);
+    if (qq.trim()) params.set('q', qq.trim());
+    return api<Page<TruckWithDriver>>(`/trucks?${params.toString()}`)
+      .then((r) => {
+        setTrucks(r.items);
+        setNextCursor(r.nextCursor);
+        setTotal(r.total);
+      })
+      .catch((e: unknown) => {
+        setListErr(errorMessage(e, 'Could not load fleet.'));
+      })
+      .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    const stack: (string | null)[] = [null];
+    setPage(1);
+    setCursors(stack);
+    loadPage(1, stack, false, debouncedQ, status);
+  }, [debouncedQ, status, loadPage]);
+
+  const hasFilter = debouncedQ.trim() !== '' || status !== 'All';
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  function nextPage() {
+    if (!nextCursor) return;
+    const stack = [...cursors, nextCursor];
+    setCursors(stack);
+    const p = page + 1;
+    setPage(p);
+    loadPage(p, stack, false, debouncedQ, status);
+  }
+
+  function prevPage() {
+    if (page <= 1) return;
+    const p = page - 1;
+    setPage(p);
+    loadPage(p, cursors, false, debouncedQ, status);
+  }
 
   useEffect(() => {
     if (!selectedId) return;
@@ -42,11 +90,6 @@ export default function SecretaryFleetPage() {
     return () => { live = false; };
   }, [selectedId]);
 
-  const filtered = trucks.filter((t) => {
-    if (status !== 'All' && t.status !== status) return false;
-    if (q && !t.plateNumber.toLowerCase().includes(q.toLowerCase())) return false;
-    return true;
-  });
   const selected = trucks.find((t) => t.truckId === selectedId) ?? null;
 
   async function recordService(e: React.FormEvent) {
@@ -80,7 +123,12 @@ export default function SecretaryFleetPage() {
         <Icons.Info className="h-4 w-4" />
         One truck = one driver only. Truck assignment changes go through Owner Fleet.
       </p>
-      {err && <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{err}</div>}
+      {listErr && (
+        <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+          {listErr}{' '}
+          <button onClick={() => loadPage(page, cursors, false, debouncedQ, status)} className="font-medium underline hover:no-underline">Retry</button>
+        </div>
+      )}
       <div className="mb-4 flex flex-wrap gap-3">
         <input
           value={q}
@@ -92,8 +140,11 @@ export default function SecretaryFleetPage() {
         <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Filter by status" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
           {['All', 'Available', 'In Use', 'Maintenance'].map((s) => <option key={s}>{s}</option>)}
         </select>
-        <span className="self-center text-xs text-slate-500">{filtered.length} of {trucks.length}</span>
+        <span className="self-center text-xs text-slate-500" role="status">{total} trucks</span>
       </div>
+      {loading ? (
+        <TableSkeleton rows={5} cols={5} />
+      ) : (
       <div className="overflow-x-auto rounded-xl bg-white shadow-sm">
         <table className="w-full text-sm">
           <thead>
@@ -106,7 +157,7 @@ export default function SecretaryFleetPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {filtered.map((t) => (
+            {trucks.map((t) => (
               <tr key={t.truckId} className="hover:bg-slate-50">
                 <td className="px-6 py-3 font-medium">{t.plateNumber}</td>
                 <td className="px-6 py-3">{t.truckType}</td>
@@ -121,8 +172,22 @@ export default function SecretaryFleetPage() {
             ))}
           </tbody>
         </table>
-        {filtered.length === 0 && <p className="py-8 text-center text-sm text-slate-400">No trucks match. Try a different search or filter.</p>}
+        {trucks.length === 0 && (
+          <p className="py-8 text-center text-sm text-slate-400">{total === 0 && !hasFilter ? 'No trucks in the fleet yet.' : 'No trucks match. Try a different search or filter.'}</p>
+        )}
       </div>
+      )}
+      {!loading && total > PAGE_SIZE && (
+        <Pager
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          noun="trucks"
+          onPrev={prevPage}
+          onNext={nextPage}
+          hasNext={nextCursor !== null}
+        />
+      )}
       {selected && (
         <div className="card mt-6 p-6">
           <h2 className="text-lg font-semibold">Vehicle Details: {selected.plateNumber}</h2>

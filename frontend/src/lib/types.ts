@@ -375,3 +375,10 @@ export function homeFor(role: Role): string {
 export function gmapsUrl(lat: number, lon: number): string {
   return `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
 }
+
+/** Paginated list envelope (ARWAYS-UI-IMPROVEMENTS §3.7/UI-11). */
+export interface Page<T> {
+  items: T[];
+  nextCursor: string | null;
+  total: number;
+}

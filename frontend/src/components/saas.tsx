@@ -23,6 +23,71 @@ export function Card({ title, action, children, className = '' }: { title?: stri
   );
 }
 
+/**
+ * Bottom pager for server-paginated tables (ARWAYS-UI-IMPROVEMENTS §3.7).
+ * Previous walks the cursor stack already fetched; Next follows nextCursor.
+ */
+export function Pager({
+  page,
+  totalPages,
+  total,
+  noun,
+  onPrev,
+  onNext,
+  hasNext,
+}: {
+  page: number;
+  totalPages: number | null;
+  total: number;
+  noun: string;
+  onPrev: () => void;
+  onNext: () => void;
+  hasNext: boolean;
+}) {
+  return (
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+      <p className="text-xs text-slate-500" role="status">
+        Page {page}{totalPages ? ` of ${totalPages}` : ''} · {total} {noun}
+      </p>
+      <div className="flex gap-2">
+        <button
+          onClick={onPrev}
+          disabled={page <= 1}
+          className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Previous
+        </button>
+        <button
+          onClick={onNext}
+          disabled={!hasNext}
+          className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Loading skeleton shaped like the final table: same row height and column
+ * layout (GitLab [U11]). First load only; never combined with a spinner on
+ * the same region; no live region needed.
+ */
+export function TableSkeleton({ rows = 5, cols = 4 }: { rows?: number; cols?: number }) {
+  return (
+    <div className="animate-pulse overflow-hidden rounded-xl bg-white shadow-sm" aria-hidden>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="flex gap-4 border-b border-slate-100 px-6 py-3 last:border-0">
+          {Array.from({ length: cols }).map((_, j) => (
+            <span key={j} className="h-4 flex-1 rounded bg-slate-100" style={j === 0 ? { maxWidth: '30%' } : undefined} />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function Empty({ message, cta }: { message: string; cta?: React.ReactNode }) {
   return (
     <div className="flex flex-col items-center justify-center py-8 text-center">

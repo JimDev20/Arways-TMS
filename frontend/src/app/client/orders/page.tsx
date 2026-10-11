@@ -1,27 +1,77 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Shell } from '@/components/Shell';
 import { api } from '@/lib/supabase';
 import { Icons } from '@/lib/createLucideIcon';
-import type { Order } from '@/lib/types';
+import { errorMessage, type Order, type Page } from '@/lib/types';
 import { PriorityBadge } from '@/components/PriorityBadge';
+import { Pager, TableSkeleton } from '@/components/saas';
+import { useDebouncedValue } from '@/lib/useDebouncedValue';
 
 const STATUSES = ['All', 'Pending', 'Approved', 'In Transit', 'Completed', 'Rejected', 'Cancelled'];
+
+const PAGE_SIZE = 20;
 
 export default function ClientOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('All');
-  useEffect(() => {
-    api<Order[]>('/orders').then(setOrders).catch(() => {});
+  const debouncedQ = useDebouncedValue(q);
+  const [page, setPage] = useState(1);
+  const [cursors, setCursors] = useState<(string | null)[]>([null]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [listErr, setListErr] = useState('');
+
+  // Server-side search, filter and cursor pagination (§3.7).
+  const loadPage = useCallback((p: number, stack: (string | null)[], silent: boolean, qq: string, st: string) => {
+    if (!silent) setLoading(true);
+    setListErr('');
+    const params = new URLSearchParams({ limit: String(PAGE_SIZE) });
+    const cur = stack[p - 1];
+    if (cur) params.set('cursor', cur);
+    if (st !== 'All') params.set('status', st);
+    if (qq.trim()) params.set('q', qq.trim());
+    api<Page<Order>>(`/orders?${params.toString()}`)
+      .then((r) => {
+        setOrders(r.items);
+        setNextCursor(r.nextCursor);
+        setTotal(r.total);
+      })
+      .catch((e: unknown) => {
+        setListErr(errorMessage(e, 'Could not load orders.'));
+      })
+      .finally(() => setLoading(false));
   }, []);
 
-  const filtered = orders.filter((o) => {
-    if (status !== 'All' && o.status !== status) return false;
-    if (q && !o.orderReference.toLowerCase().includes(q.toLowerCase())) return false;
-    return true;
-  });
+  // Any filter change restarts at page 1 with a fresh cursor stack.
+  useEffect(() => {
+    const stack: (string | null)[] = [null];
+    setPage(1);
+    setCursors(stack);
+    loadPage(1, stack, false, debouncedQ, status);
+  }, [debouncedQ, status, loadPage]);
+
+  const hasFilter = debouncedQ.trim() !== '' || status !== 'All';
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  function nextPage() {
+    if (!nextCursor) return;
+    const stack = [...cursors, nextCursor];
+    setCursors(stack);
+    const p = page + 1;
+    setPage(p);
+    loadPage(p, stack, false, debouncedQ, status);
+  }
+
+  function prevPage() {
+    if (page <= 1) return;
+    const p = page - 1;
+    setPage(p);
+    loadPage(p, cursors, false, debouncedQ, status);
+  }
 
   return (
     <Shell role="Client" title="My Orders">
@@ -46,8 +96,17 @@ export default function ClientOrders() {
         >
           {STATUSES.map((s) => <option key={s}>{s}</option>)}
         </select>
-        <span className="text-xs text-slate-500">{filtered.length} of {orders.length}</span>
+        <span className="text-xs text-slate-500" role="status">{total} orders</span>
       </div>
+      {listErr && (
+        <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+          {listErr}{' '}
+          <button onClick={() => loadPage(page, cursors, false, debouncedQ, status)} className="font-medium underline hover:no-underline">Retry</button>
+        </div>
+      )}
+      {loading ? (
+        <TableSkeleton rows={5} cols={4} />
+      ) : (
       <div className="rounded-xl bg-white shadow-sm">
         <div className="border-b border-slate-200 px-6 py-4">
           <div className="flex items-center gap-2">
@@ -66,7 +125,7 @@ export default function ClientOrders() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.map((o) => (
+              {orders.map((o) => (
                 <tr key={o.orderId} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-3 font-medium text-slate-900">
                     <Link href={`/client/track/${o.orderId}`} className="text-[#0e7a70] hover:underline" title="Open tracking timeline">
@@ -96,11 +155,11 @@ export default function ClientOrders() {
                   <td className="px-6 py-3 text-slate-600">{o.scheduledDate}</td>
                 </tr>
               ))}
-              {filtered.length === 0 && (
+              {orders.length === 0 && (
                 <tr>
                   <td colSpan={4} className="px-6 py-8 text-center text-slate-400">
                     <div className="flex flex-col items-center gap-2">
-                      <p>{orders.length === 0 ? 'No orders found' : 'No orders match. Try a different search or filter.'}</p>
+                      <p>{total === 0 && !hasFilter ? 'No orders found' : 'No orders match. Try a different search or filter.'}</p>
                     </div>
                   </td>
                 </tr>
@@ -109,6 +168,18 @@ export default function ClientOrders() {
           </table>
         </div>
       </div>
+      )}
+      {!loading && total > PAGE_SIZE && (
+        <Pager
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          noun="orders"
+          onPrev={prevPage}
+          onNext={nextPage}
+          hasNext={nextCursor !== null}
+        />
+      )}
     </Shell>
   );
 }
