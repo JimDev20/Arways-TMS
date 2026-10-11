@@ -95,6 +95,18 @@ export default function SecretaryTrackDetailPage({ params }: { params: Promise<{
     })
     .filter((p): p is MapPin => p !== null);
 
+  // Two-way map ↔ stop-row selection [U13].
+  const [selectedStopId, setSelectedStopId] = useState('');
+  const pinnedStops = stops.filter((s) => coordsOf(s.locationCoordinates));
+  const selectedIndex = pinnedStops.findIndex((s) => s.stopId === selectedStopId);
+  function selectStop(stopId: string, scroll: boolean) {
+    setSelectedStopId((prev) => (prev === stopId ? '' : stopId));
+    if (scroll && typeof window !== 'undefined') {
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      document.getElementById(`stop-row-${stopId}`)?.scrollIntoView({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' });
+    }
+  }
+
   return (
     <Shell role="Secretary" title="Track Order">
       {err && <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{err}</div>}
@@ -145,7 +157,14 @@ export default function SecretaryTrackDetailPage({ params }: { params: Promise<{
           {pins.length > 0 && (
             <div className="rounded-xl bg-white p-6 shadow-sm">
               <h2 className="mb-3 text-base font-semibold text-slate-900">Map View</h2>
-              <MapView pins={pins} />
+              <MapView
+                pins={pins}
+                selectedIndex={selectedIndex >= 0 ? selectedIndex : null}
+                onSelectPin={(i) => {
+                  const s = pinnedStops[i];
+                  if (s) selectStop(s.stopId, true);
+                }}
+              />
             </div>
           )}
 
@@ -194,10 +213,22 @@ export default function SecretaryTrackDetailPage({ params }: { params: Promise<{
             <h2 className="mb-3 text-base font-semibold text-slate-900">Stops & Proof</h2>
             <ul className="divide-y divide-slate-100">
               {stops.map((s) => (
-                <li key={s.stopId} className="py-3">
+                <li key={s.stopId} id={`stop-row-${s.stopId}`} className={`py-3 ${selectedStopId === s.stopId ? 'rounded-lg bg-[#0e7a70]/5 ring-2 ring-[#0e7a70]/30' : ''}`}>
                   <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
                     <span className="font-medium text-slate-900">#{s.stopSequence} {s.stopType} · {s.locationAddress}</span>
-                    <StatusPill status={s.status} />
+                    <span className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => selectStop(s.stopId, false)}
+                        aria-pressed={selectedStopId === s.stopId}
+                        aria-label={`Highlight ${s.locationAddress} on the map`}
+                        title="Highlight on map"
+                        className="rounded p-1.5 text-slate-400 hover:bg-slate-200 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0e7a70]"
+                      >
+                        <Icons.MapPin className="h-3.5 w-3.5" />
+                      </button>
+                      <StatusPill status={s.status} />
+                    </span>
                   </div>
                   {s.driverNotes && <p className="mt-1 text-sm text-slate-600">Driver note: “{s.driverNotes}”</p>}
                   {s.receiptPhotoUrl && (

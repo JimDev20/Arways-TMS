@@ -88,6 +88,19 @@ export default function DriverHome() {
     })
     .filter((p): p is MapPin => p !== null);
 
+  // Two-way map ↔ stop-card selection [U13]: pins stay in first-route stop
+  // order, so the pin index maps back through the pinned stops.
+  const [selectedStopId, setSelectedStopId] = useState('');
+  const pinnedStops = (first?.stops ?? []).filter((s) => coordsOf(s.locationCoordinates));
+  const selectedIndex = pinnedStops.findIndex((s) => s.stopId === selectedStopId);
+  function selectStop(stopId: string, scroll: boolean) {
+    setSelectedStopId((prev) => (prev === stopId ? '' : stopId));
+    if (scroll && typeof window !== 'undefined') {
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      document.getElementById(`stop-card-${stopId}`)?.scrollIntoView({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' });
+    }
+  }
+
   async function patch(path: string, body?: Record<string, unknown>, okText?: string) {
     setIsSubmitting(true);
     setMsg(null);
@@ -326,7 +339,15 @@ export default function DriverHome() {
             </button>
           </div>
           {pins.length > 0 ? (
-            <MapView pins={pins} height="h-64 sm:h-80" />
+            <MapView
+              pins={pins}
+              height="h-64 sm:h-80"
+              selectedIndex={selectedIndex >= 0 ? selectedIndex : null}
+              onSelectPin={(i) => {
+                const s = pinnedStops[i];
+                if (s) selectStop(s.stopId, true);
+              }}
+            />
           ) : (
             <p className="text-sm text-slate-500">No pins yet.</p>
           )}
@@ -499,7 +520,7 @@ export default function DriverHome() {
               {/* Stops */}
               <div className="space-y-3">
                 {(stops ?? []).map((s) => (
-                  <div key={s.stopId} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <div key={s.stopId} id={`stop-card-${s.stopId}`} className={`rounded-lg border bg-slate-50 p-4 ${selectedStopId === s.stopId ? 'border-[#0e7a70] ring-2 ring-[#0e7a70]/30' : 'border-slate-200'}`}>
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
@@ -507,6 +528,16 @@ export default function DriverHome() {
                             {s.stopSequence}
                           </span>
                           <span className="font-medium text-slate-900">{s.locationAddress}</span>
+                          <button
+                            type="button"
+                            onClick={() => selectStop(s.stopId, false)}
+                            aria-pressed={selectedStopId === s.stopId}
+                            aria-label={`Highlight ${s.locationAddress} on the map`}
+                            title="Highlight on map"
+                            className="rounded p-1.5 text-slate-400 hover:bg-slate-200 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0e7a70]"
+                          >
+                            <Icons.MapPin className="h-3.5 w-3.5" />
+                          </button>
                         </div>
                         <StatusPill status={s.status}>
                           {s.status} · {s.stopType}

@@ -26,7 +26,9 @@ function FlyTo({ target }: { target: { lat: number; lon: number; key: number } |
   useEffect(() => {
     if (target && target.key !== lastKey.current) {
       lastKey.current = target.key;
-      map.flyTo([target.lat, target.lon], 16, { duration: 1.2 });
+      const reduced = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (reduced) map.setView([target.lat, target.lon], 16);
+      else map.flyTo([target.lat, target.lon], 16, { duration: 1.2 });
     }
   }, [map, target]);
   return null;
