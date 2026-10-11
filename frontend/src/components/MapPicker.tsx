@@ -123,6 +123,7 @@ export default function MapPicker({
               value={search}
               onChange={(e) => { setSearch(e.target.value); runSearch(e.target.value); }}
               onFocus={() => { if (results.length > 0) setOpen(true); }}
+              onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false); }}
               aria-label={`${label} search`}
               autoComplete="off"
             />

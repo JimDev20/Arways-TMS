@@ -6,6 +6,7 @@ import { api } from '@/lib/supabase';
 import { Icons } from '@/lib/createLucideIcon';
 import { errorMessage, TRUCK_SIZES, type MaintenanceLog, type Truck, type TruckSize, type TruckWithDriver, type UserRow } from '@/lib/types';
 import { FieldHint } from '@/components/FieldHint';
+import { SearchField } from '@/components/SearchField';
 
 function todayStr() { return new Date().toISOString().slice(0, 10); }
 
@@ -168,18 +169,14 @@ export default function FleetPage() {
 
       {/* Search + filters */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-52">
-          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-            <Icons.Search className="h-4 w-4 text-slate-400" />
-          </div>
-          <input
-            className="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
-            placeholder="Search by plate number (e.g. ABC 123)…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            aria-label="Search trucks by plate"
-          />
-        </div>
+        <SearchField
+          value={q}
+          onChange={setQ}
+          placeholder="Search by plate number (e.g. ABC 123)…"
+          label="Search trucks by plate"
+          className="flex-1 min-w-52"
+          inputClassName="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-9 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
+        />
         <select className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" value={type} onChange={(e) => setType(e.target.value)} aria-label="Filter by type">
           {TRUCK_TYPES.map((t) => <option key={t}>{t}</option>)}
         </select>
@@ -189,7 +186,7 @@ export default function FleetPage() {
         <select className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" value={size} onChange={(e) => setSize(e.target.value)} aria-label="Filter by size">
           {TRUCK_SIZE_FILTERS.map((s) => <option key={s} value={s}>{s === 'All' ? s : `${s} wheeler`}</option>)}
         </select>
-        <span className="text-xs text-slate-500">{filtered.length} of {trucks.length}</span>
+        <span className="text-xs text-slate-500" role="status">{filtered.length} of {trucks.length}</span>
       </div>
 
       {/* Trucks Table */}

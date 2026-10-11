@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Shell } from '@/components/Shell';
 import { Card, Empty, StatusDot, type DotColor } from '@/components/saas';
+import { SearchField } from '@/components/SearchField';
 import { api } from '@/lib/supabase';
 import { useRealtime } from '@/lib/realtime';
 import { notificationHref } from '@/lib/notifications';
@@ -82,12 +83,13 @@ export function NotificationsCenter({ role }: { role: Role }) {
         title={`Notifications${unread.length > 0 ? ` (${unread.length} unread)` : ''}`}
         action={
           <div className="flex flex-wrap gap-2">
-            <input
+            <SearchField
               value={q}
-              onChange={(e) => setQ(e.target.value)}
+              onChange={setQ}
               placeholder="Search notifications by message or order ref…"
-              aria-label="Search notifications"
-              className="w-44 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900"
+              label="Search notifications"
+              withIcon={false}
+              inputClassName="w-44 rounded-lg border border-slate-200 bg-white pl-3 pr-8 py-1.5 text-sm focus:border-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900"
             />
             <select
               value={filter}
