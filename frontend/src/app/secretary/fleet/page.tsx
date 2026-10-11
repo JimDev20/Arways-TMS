@@ -85,7 +85,7 @@ export default function SecretaryFleetPage() {
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search plate number…"
+          placeholder="Search by plate number (e.g. ABC 123)…"
           aria-label="Search fleet"
           className="min-w-52 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
         />

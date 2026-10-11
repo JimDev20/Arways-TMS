@@ -85,7 +85,7 @@ export function NotificationsCenter({ role }: { role: Role }) {
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search messages…"
+              placeholder="Search notifications by message or order ref…"
               aria-label="Search notifications"
               className="w-44 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900"
             />

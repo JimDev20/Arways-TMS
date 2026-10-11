@@ -18,7 +18,7 @@ export default function SecretaryTrackListPage() {
 
   return (
     <Shell role="Secretary" title="Track Orders">
-      <Card title={`All shipments (${visible.length})`} action={<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search reference…" aria-label="Search orders" className="w-48 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-900" />}>
+      <Card title={`All shipments (${visible.length})`} action={<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by order reference (e.g. JFC-2026-00123)…" aria-label="Search orders" className="w-48 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-900" />}>
         {visible.length === 0 ? (
           <Empty message="No orders to track yet." cta={<Link href="/secretary/new" className="btn-primary text-sm">Create order</Link>} />
         ) : (
