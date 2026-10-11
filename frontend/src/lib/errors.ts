@@ -209,7 +209,7 @@ export function friendlyErrorMessage(err: unknown): string {
   // throws TypeError "Failed to fetch" with no status. Name the exact fix
   // instead of showing the raw browser text.
   if (/failed to fetch|networkerror|load failed|network request failed/i.test(raw)) {
-    return 'Cannot reach the server. Start the backend (`npm run start:dev` in `backend/`) and make sure it listens on http://localhost:4000/api, then try again.';
+    return 'Cannot reach the server. Check your internet connection and try again.';
   }
   if (EXACT[raw]) return EXACT[raw];
 

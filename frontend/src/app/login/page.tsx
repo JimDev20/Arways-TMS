@@ -37,9 +37,19 @@ export default function LoginPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true); setError('');
-    if (!email.trim() || !password) {
+    if (!email.trim() && !password) {
       setBusy(false);
       setError('Enter your email and password to log in.');
+      return;
+    }
+    if (!email.trim()) {
+      setBusy(false);
+      setError('Email is empty. Type the email address of your account.');
+      return;
+    }
+    if (!password) {
+      setBusy(false);
+      setError('Password is empty. Type your password.');
       return;
     }
     // Client-side shape check first (HCI error prevention): a malformed
@@ -59,10 +69,10 @@ export default function LoginPage() {
       const body = (await res.json().catch(() => ({}))) as Partial<LoginResponse> & { message?: unknown };
       if (!res.ok) {
         const m = body.message;
-        throw new Error(friendlyErrorMessage(Array.isArray(m) ? m.join(' ') : (m ?? 'Login failed.')));
+        throw new Error(friendlyErrorMessage(Array.isArray(m) ? m.join(' ') : (m ?? 'Login failed. Check your email spelling and password, then try again.')));
       }
       if (!body.access_token || !body.user) {
-        throw new Error('Login failed. Check your connection and try again.');
+        throw new Error('Login failed. The server reply was incomplete. Check your connection and try again.');
       }
       localStorage.setItem('arways_token', body.access_token);
       localStorage.setItem('arways_user', JSON.stringify(body.user));
@@ -97,6 +107,7 @@ export default function LoginPage() {
                   id="email"
                   type="email"
                   autoComplete="username"
+                  placeholder="name@example.com"
                   aria-describedby={emailHint(email) ? 'email-hint' : undefined}
                   className="block w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm text-slate-900 placeholder-slate-400 focus:border-[#0e7a70] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#0e7a70] transition-all"
                   value={email}
@@ -116,6 +127,7 @@ export default function LoginPage() {
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
+                  placeholder="Your password"
                   aria-describedby={[error ? 'login-error' : null, capsOn && password ? 'pw-caps' : null, password && password.length < 10 ? 'pw-len' : null].filter(Boolean).join(' ') || undefined}
                   className="block w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-11 text-sm text-slate-900 placeholder-slate-400 focus:border-[#0e7a70] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#0e7a70] transition-all"
                   value={password}
