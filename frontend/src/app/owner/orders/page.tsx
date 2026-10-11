@@ -7,6 +7,7 @@ import { api } from '@/lib/supabase';
 import { Icons } from '@/lib/createLucideIcon';
 import { errorMessage, type Order, type OrderDetail } from '@/lib/types';
 import { PriorityBadge } from '@/components/PriorityBadge';
+import { StatusPill } from '@/components/StatusPill';
 
 const STATUSES = ['All', 'Pending', 'Approved', 'In Transit', 'Completed', 'Rejected', 'Cancelled'];
 
@@ -106,13 +107,7 @@ export default function OwnerOrdersPage() {
                   <tr className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-3 font-medium text-slate-900">{o.orderReference}</td>
                     <td className="px-6 py-3">
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                      o.status === 'Pending' ? 'bg-amber-50 text-amber-700' :
-                      o.status === 'Approved' || o.status === 'In Transit' ? 'bg-blue-50 text-blue-700' :
-                      o.status === 'Completed' ? 'bg-green-50 text-green-700' :
-                      o.status === 'Cancelled' ? 'bg-slate-100 text-slate-600' :
-                      'bg-red-50 text-red-700'
-                    }`}>{o.status}</span>
+                    <StatusPill status={o.status} />
                     </td>
                     <td className="px-6 py-3">
                       <PriorityBadge priority={o.priority} />

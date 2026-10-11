@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { Shell, Stat } from '@/components/Shell';
 import { coordsOf, type MapPin } from '@/lib/map';
 import { ActivityFeed, Card, DeliveryTrend, SystemHealth, TopDrivers, buildActivity } from '@/components/saas';
+import { StatusPill } from '@/components/StatusPill';
 import { api } from '@/lib/supabase';
 import { useRealtime } from '@/lib/realtime';
 import { Icons } from '@/lib/createLucideIcon';
@@ -257,15 +258,7 @@ export default function OwnerDashboard() {
                 <tr key={o.orderId} className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60">
                   <td className="px-6 py-3 font-medium text-slate-900 dark:text-slate-100">{o.orderReference}</td>
                   <td className="px-6 py-3">
-                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
-                      o.status === 'Pending' ? 'bg-amber-50 text-amber-700' :
-                      o.status === 'Approved' ? 'bg-blue-50 text-blue-700' :
-                      o.status === 'In Transit' ? 'bg-blue-50 text-blue-700' :
-                      o.status === 'Completed' ? 'bg-green-50 text-green-700' :
-                      'bg-red-50 text-red-700'
-                    }`}>
-                      {o.status}
-                    </span>
+                    <StatusPill status={o.status} />
                   </td>
                   <td className="px-6 py-3 text-slate-600 dark:text-slate-300">{o.scheduledDate}</td>
                   <td className="px-6 py-3 text-slate-600 dark:text-slate-300">{o.createdAt?.slice(0, 10)}</td>

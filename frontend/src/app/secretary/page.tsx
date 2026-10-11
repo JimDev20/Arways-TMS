@@ -7,6 +7,7 @@ import { useRealtime } from '@/lib/realtime';
 import { Icons } from '@/lib/createLucideIcon';
 import { errorMessage, type Order, type RouteFull } from '@/lib/types';
 import { PriorityBadge } from '@/components/PriorityBadge';
+import { StatusPill } from '@/components/StatusPill';
 
 function todayStr() { return new Date().toISOString().slice(0, 10); }
 
@@ -148,13 +149,7 @@ export function ApprovalCard({ order, route, onDone }: { order: Order; route: Ro
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <span className="text-sm font-bold text-slate-900">#{order.orderReference}</span>
-            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-              order.status === 'Pending' ? 'bg-amber-50 text-amber-700' :
-              order.status === 'Approved' ? 'bg-green-50 text-green-700' :
-              'bg-red-50 text-red-700'
-            }`}>
-              {order.status}
-            </span>
+            <StatusPill status={order.status} />
             <PriorityBadge priority={order.priority} />
           </div>
           <p className="mt-2 text-sm text-slate-500">

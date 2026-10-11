@@ -7,6 +7,7 @@ import { api } from '@/lib/supabase';
 import { useRealtime } from '@/lib/realtime';
 import Link from 'next/link';
 import { Icons } from '@/lib/createLucideIcon';
+import { StatusPill } from '@/components/StatusPill';
 import type { Order, OrderDetail } from '@/lib/types';
 
 const MapView = dynamic(() => import('@/components/MapView').then((m) => m.MapView), { ssr: false });
@@ -93,15 +94,7 @@ export default function ClientDashboard() {
                 <tr key={o.orderId} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-3 font-medium text-slate-900">{o.orderReference}</td>
                   <td className="px-6 py-3">
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
-                      o.status === 'Pending' ? 'bg-amber-50 text-amber-700' :
-                      o.status === 'Approved' ? 'bg-blue-50 text-blue-700' :
-                      o.status === 'In Transit' ? 'bg-blue-50 text-blue-700' :
-                      o.status === 'Completed' ? 'bg-green-50 text-green-700' :
-                      'bg-red-50 text-red-700'
-                    }`}>
-                      {o.status}
-                    </span>
+                    <StatusPill status={o.status} />
                   </td>
                   <td className="px-6 py-3 text-slate-600">{o.scheduledDate}</td>
                   <td className="px-6 py-3">

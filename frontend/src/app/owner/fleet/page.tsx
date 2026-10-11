@@ -6,6 +6,7 @@ import { api } from '@/lib/supabase';
 import { Icons } from '@/lib/createLucideIcon';
 import { errorMessage, TRUCK_SIZES, type MaintenanceLog, type Truck, type TruckSize, type TruckWithDriver, type UserRow } from '@/lib/types';
 import { FieldHint } from '@/components/FieldHint';
+import { StatusPill } from '@/components/StatusPill';
 
 function todayStr() { return new Date().toISOString().slice(0, 10); }
 
@@ -231,14 +232,7 @@ export default function FleetPage() {
                     )}
                   </td>
                   <td className="px-6 py-3">
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                      t.status === 'Available' ? 'bg-green-50 text-green-700' :
-                      t.status === 'In Use' ? 'bg-blue-50 text-blue-700' :
-                      t.status === 'Maintenance' ? 'bg-amber-50 text-amber-700' :
-                      'bg-slate-100 text-slate-700'
-                    }`}>
-                      {t.status}
-                    </span>
+                    <StatusPill status={t.status} />
                   </td>
                   <td className="px-6 py-3 text-right">
                     <button

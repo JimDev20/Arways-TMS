@@ -6,6 +6,7 @@ import { api } from '@/lib/supabase';
 import { Icons } from '@/lib/createLucideIcon';
 import type { Order } from '@/lib/types';
 import { PriorityBadge } from '@/components/PriorityBadge';
+import { StatusPill } from '@/components/StatusPill';
 
 const STATUSES = ['All', 'Pending', 'Approved', 'In Transit', 'Completed', 'Rejected', 'Cancelled'];
 
@@ -74,16 +75,7 @@ export default function ClientOrders() {
                     </Link>
                   </td>
                   <td className="px-6 py-3">
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
-                      o.status === 'Pending' ? 'bg-amber-50 text-amber-700' :
-                      o.status === 'Approved' ? 'bg-blue-50 text-blue-700' :
-                      o.status === 'In Transit' ? 'bg-blue-50 text-blue-700' :
-                      o.status === 'Completed' ? 'bg-green-50 text-green-700' :
-                      o.status === 'Cancelled' ? 'bg-slate-100 text-slate-600' :
-                      'bg-red-50 text-red-700'
-                    }`}>
-                      {o.status}
-                    </span>
+                    <StatusPill status={o.status} />
                     {o.rejectionReason && (
                       <span className="mt-1 block max-w-56 truncate text-xs text-red-600" title={o.rejectionReason}>
                         {o.rejectionReason}
