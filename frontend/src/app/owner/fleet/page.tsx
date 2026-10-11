@@ -21,8 +21,6 @@ function dueBadge(nextDue: string | null): { text: string; urgent: boolean } | n
 }
 
 const TRUCK_STATUSES = ['All', 'Available', 'In Use', 'Maintenance'];
-const TRUCK_TYPES = ['All', 'Refrigerated', 'Dry'];
-const TRUCK_SIZE_FILTERS = ['All', ...TRUCK_SIZES];
 
 export default function FleetPage() {
   const [trucks, setTrucks] = useState<TruckWithDriver[]>([]);
@@ -30,8 +28,6 @@ export default function FleetPage() {
   const [form, setForm] = useState({ plateNumber: '', truckType: 'Refrigerated', truckSize: '6W' as TruckSize, capacityKg: 2000, assignedDriverId: '' });
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('All');
-  const [type, setType] = useState('All');
-  const [size, setSize] = useState('All');
   const [err, setErr] = useState('');
   const [okMsg, setOkMsg] = useState('');
   const [busy, setBusy] = useState(false);
@@ -106,11 +102,11 @@ export default function FleetPage() {
     };
   }, []);
 
+  // Text filter covers plate, type and size (exact values the user knows);
+  // status is the one collection select filter (§3.8: text + one select).
   const filtered = trucks.filter((t) => {
     if (status !== 'All' && t.status !== status) return false;
-    if (type !== 'All' && t.truckType !== type) return false;
-    if (size !== 'All' && (t.truckSize ?? '6W') !== size) return false;
-    if (q && !t.plateNumber.toLowerCase().includes(q.toLowerCase())) return false;
+    if (q && !`${t.plateNumber} ${t.truckType} ${t.truckSize ?? '6W'}`.toLowerCase().includes(q.toLowerCase())) return false;
     return true;
   });
   const selected = trucks.find((t) => t.truckId === selectedId) ?? null;
@@ -177,19 +173,13 @@ export default function FleetPage() {
         <SearchField
           value={q}
           onChange={setQ}
-          placeholder="Search by plate number (e.g. ABC 123)…"
-          label="Search trucks by plate"
+          placeholder="Search plate, type, or size (e.g. ABC 123)…"
+          label="Search trucks by plate, type, or size"
           className="flex-1 min-w-52"
           inputClassName="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-9 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
         />
-        <select className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" value={type} onChange={(e) => setType(e.target.value)} aria-label="Filter by type">
-          {TRUCK_TYPES.map((t) => <option key={t}>{t}</option>)}
-        </select>
         <select className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Filter by status">
           {TRUCK_STATUSES.map((s) => <option key={s}>{s}</option>)}
-        </select>
-        <select className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" value={size} onChange={(e) => setSize(e.target.value)} aria-label="Filter by size">
-          {TRUCK_SIZE_FILTERS.map((s) => <option key={s} value={s}>{s === 'All' ? s : `${s} wheeler`}</option>)}
         </select>
         <span className="text-xs text-slate-500" role="status">{filtered.length} of {trucks.length}</span>
       </div>
@@ -254,7 +244,7 @@ export default function FleetPage() {
                     <div className="flex flex-col items-center gap-2">
                       <p>{trucks.length === 0 ? 'No trucks in the fleet yet.' : 'No trucks match. Try a different search or filter.'}</p>
                       {trucks.length > 0 && (
-                        <button onClick={() => { setQ(''); setStatus('All'); setType('All'); setSize('All'); }} className="btn-ghost mt-1 text-sm">Clear filter</button>
+                        <button onClick={() => { setQ(''); setStatus('All'); }} className="btn-ghost mt-1 text-sm">Clear filter</button>
                       )}
                     </div>
                   </td>
