@@ -39,7 +39,7 @@ export function parseLocationInput(input: string): ParsedLocation {
       // say so instead of a bare range error.
       const a = Number(bare[1]), b = Number(bare[2]);
       if (b >= -90 && b <= 90 && a >= -180 && a <= 180) {
-        return { kind: 'unsupported', reason: `"${text}" looks like longitude,latitude order (latitude must be -90…90, but got ${bare[1]}). Try "${bare[2]}, ${bare[1]}" instead — for Maanahao, Masbate use 12.05509, 123.90058.` };
+        return { kind: 'unsupported', reason: `"${text}" looks like longitude,latitude order (latitude must be -90…90, but got ${bare[1]}). Try "${bare[2]}, ${bare[1]}" instead. For Maanahao, Masbate use 12.05509, 123.90058.` };
       }
       return { kind: 'unsupported', reason: `"${text}" is not a valid coordinate pair. Latitude must be -90…90, longitude -180…180.` };
     }

@@ -174,7 +174,7 @@ export default function UsersPage() {
                     {u.licenseNo && <span className="block text-xs font-normal text-slate-400">Lic: {u.licenseNo}</span>}
                   </td>
                   <td className="px-6 py-3 text-slate-600">{u.email}</td>
-                  <td className="px-6 py-3 text-slate-600">{u.phone ?? <span className="text-slate-400">—</span>}</td>
+                  <td className="px-6 py-3 text-slate-600">{u.phone ?? <span className="text-slate-400">-</span>}</td>
                   <td className="px-6 py-3">
                     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
                       u.role === 'Owner' ? 'bg-amber-50 text-amber-700' :
@@ -230,7 +230,7 @@ export default function UsersPage() {
           <Icons.UserPlus className="h-5 w-5 text-slate-400" />
           <h2 className="text-lg font-semibold text-slate-900">Add Team Member</h2>
         </div>
-        <p className="mb-4 rounded-lg bg-amber-50 px-4 py-2.5 text-sm text-amber-800">Invite links ship with F1. Until then this form types a temporary 10+ character password — share it once, privately, and ask the person to change it. The Owner never reuses it.</p>
+        <p className="mb-4 rounded-lg bg-amber-50 px-4 py-2.5 text-sm text-amber-800">Invite links ship with F1. Until then this form types a temporary 10+ character password. Share it once, privately, and ask the person to change it. The Owner never reuses it.</p>
         {err && (
           <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center gap-2" role="alert">
             <Icons.AlertCircle className="h-5 w-5 shrink-0" />

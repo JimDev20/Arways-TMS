@@ -163,10 +163,10 @@ export function Reports({ role }: { role: 'Owner' | 'Secretary' }) {
               <StatCard label="Delivered" value={data.delivered} tone="green" />
               <StatCard label="Failed" value={data.failed} tone="red" />
               <StatCard label="Delivery Rate" value={`${data.deliveryRatePct ?? 0}%`} tone="green" />
-              <StatCard label="On-time Rate" value={data.onTimeJudged ? `${data.onTimePct}%` : '—'} tone="amber" />
+              <StatCard label="On-time Rate" value={data.onTimeJudged ? `${data.onTimePct}%` : '-'} tone="amber" />
             </div>
             {data.onTimeJudged === 0 && (
-              <p className="mt-2 text-xs text-slate-400">On-time needs deliveries with store time windows — none in this period.</p>
+              <p className="mt-2 text-xs text-slate-400">On-time needs deliveries with store time windows. None in this period.</p>
             )}
 
             <div className="mt-6 grid gap-6 lg:grid-cols-2">

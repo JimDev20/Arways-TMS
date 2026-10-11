@@ -94,7 +94,7 @@ export class RoutesController {
       out.push({
         route,
         stops: sorted,
-        orderReference: order?.orderReference ?? '—',
+        orderReference: order?.orderReference ?? '-',
         scheduledDate: order?.scheduledDate ?? null,
         scheduledTime: order?.scheduledTime ?? null,
         client: client
@@ -125,10 +125,10 @@ export class RoutesController {
         const stops: any[] = await this.db.select().from(schema.stops).where(eq(schema.stops.routeId, route.routeId));
         return {
           route,
-          orderReference: order?.orderReference ?? '—',
-          orderStatus: order?.status ?? '—',
-          truckPlate: truck?.plateNumber ?? '—',
-          driverName: driver?.fullName ?? '—',
+        orderReference: order?.orderReference ?? '-',
+          orderStatus: order?.status ?? '-',
+          truckPlate: truck?.plateNumber ?? '-',
+          driverName: driver?.fullName ?? '-',
           stops: stops.sort((a: any, b: any) => a.stopSequence - b.stopSequence),
         };
       }),
@@ -307,8 +307,8 @@ export class RoutesController {
         if (r) {
           if (o) {
             const msg = clean
-              ? `Order ${o.orderReference} delivered — all ${dropoffs.length} stop${dropoffs.length === 1 ? '' : 's'} done`
-              : `Order ${o.orderReference} completed with exceptions — failed: ${failedNames.join(', ')}`;
+              ? `Order ${o.orderReference} delivered. All ${dropoffs.length} stop${dropoffs.length === 1 ? '' : 's'} done.`
+              : `Order ${o.orderReference} completed with exceptions. Failed: ${failedNames.join(', ')}`;
             await this.notifyOrderWatchers(o, 'order_completed', msg);
           }
         }
