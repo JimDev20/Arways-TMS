@@ -6,16 +6,18 @@ import { useRealtime } from '@/lib/realtime';
 import { Icons } from '@/lib/createLucideIcon';
 import { SearchField } from '@/components/SearchField';
 import { ApprovalCard } from '@/app/secretary/page';
+import { ListSkeleton } from '@/components/saas';
 import type { Order } from '@/lib/types';
 
 export default function ApprovalsPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [q, setQ] = useState('');
+  const [loading, setLoading] = useState(true);
   const load = useCallback(() => {
     api<Order[]>('/orders?status=Pending').then(setOrders).catch(() => {});
   }, []);
   useEffect(() => {
-    api<Order[]>('/orders?status=Pending').then(setOrders).catch(() => {});
+    api<Order[]>('/orders?status=Pending').then(setOrders).catch(() => {}).finally(() => setLoading(false));
   }, []);
   useRealtime('orders', load);
 
@@ -26,15 +28,17 @@ export default function ApprovalsPage() {
 
   return (
     <Shell role="Secretary" title="Order Approvals">
-      <SearchField
-        value={q}
-        onChange={setQ}
-        placeholder="Search by reference or date (YYYY-MM-DD)…"
-        label="Search approval queue"
-        className="mb-4"
-        inputClassName="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-9 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
-      />
-      {filtered.length > 0 ? (
+        <SearchField
+          value={q}
+          onChange={setQ}
+          placeholder="Search by reference or date (YYYY-MM-DD)…"
+          label="Search approval queue"
+          className="mb-4"
+          inputClassName="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-9 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
+        />
+        {loading ? (
+          <ListSkeleton rows={3} />
+        ) : filtered.length > 0 ? (
         <div className="rounded-xl bg-white shadow-sm">
           <div className="border-b border-slate-200 px-6 py-4">
             <div className="flex items-center justify-between">

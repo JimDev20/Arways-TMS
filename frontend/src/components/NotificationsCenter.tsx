@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Shell } from '@/components/Shell';
-import { Card, Empty, StatusDot } from '@/components/saas';
+import { Card, Empty, ListSkeleton, StatusDot } from '@/components/saas';
 import { SearchField } from '@/components/SearchField';
 import { api } from '@/lib/supabase';
 import { useRealtime } from '@/lib/realtime';
@@ -16,6 +16,7 @@ export function NotificationsCenter({ role }: { role: Role }) {
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [q, setQ] = useState('');
+  const [loading, setLoading] = useState(true);
   const load = useCallback(() => {
     api<NotificationItem[]>('/notifications').then(setItems).catch(() => {});
   }, []);
@@ -25,7 +26,10 @@ export function NotificationsCenter({ role }: { role: Role }) {
       .then((list) => {
         if (live) setItems(list);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        if (live) setLoading(false);
+      });
     return () => {
       live = false;
     };
@@ -93,11 +97,13 @@ export function NotificationsCenter({ role }: { role: Role }) {
           </div>
         }
       >
-        {visible.length === 0 ? (
-          <Empty
-            message={q.trim() ? 'No notifications match. Try a different search.' : filter === 'unread' ? 'All caught up: no unread notifications.' : 'No notifications yet.'}
-            cta={q.trim() || filter !== 'all' ? <button onClick={() => { setQ(''); setFilter('all'); }} className="btn-ghost text-sm">Clear filter</button> : undefined}
-          />
+          {loading ? (
+            <ListSkeleton rows={4} />
+          ) : visible.length === 0 ? (
+            <Empty
+              message={q.trim() ? 'No notifications match. Try a different search.' : filter === 'unread' ? 'All caught up: no unread notifications.' : 'No notifications yet.'}
+              cta={q.trim() || filter !== 'all' ? <button onClick={() => { setQ(''); setFilter('all'); }} className="btn-ghost text-sm">Clear filter</button> : undefined}
+            />
         ) : (
           <ul className="divide-y divide-slate-100 dark:divide-slate-800">
             {visible.map((n) => {

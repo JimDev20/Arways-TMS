@@ -7,6 +7,7 @@ import { errorMessage, type ClientRow } from '@/lib/types';
 import { emailHint, isEmailLike } from '@/lib/errors';
 import { FieldHint, FormErrorBanner, type FormErrorItem } from '@/components/FieldHint';
 import { SearchField } from '@/components/SearchField';
+import { TableSkeleton } from '@/components/saas';
 
 const EMPTY = { companyName: '', contactPerson: '', phone: '', email: '', dispatchAreaAddress: '', lon: '', lat: '', entranceInstructions: '', dispatcherContact: '' };
 
@@ -16,6 +17,7 @@ export default function OwnerClientsPage() {
   const [err, setErr] = useState('');
   const [okMsg, setOkMsg] = useState('');
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<FormErrorItem[]>([]);
   const fieldErr = (id: string) => fieldErrors.find((e) => e.fieldId === id)?.message;
   const [emailTouched, setEmailTouched] = useState(false);
@@ -24,7 +26,7 @@ export default function OwnerClientsPage() {
     setClients(await api<ClientRow[]>('/clients'));
   }
   useEffect(() => {
-    api<ClientRow[]>('/clients').then(setClients).catch(() => {});
+    api<ClientRow[]>('/clients').then(setClients).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   async function create(e: React.FormEvent) {
@@ -86,6 +88,9 @@ export default function OwnerClientsPage() {
         />
         <span className="text-xs text-slate-500" role="status">{filtered.length} of {clients.length}</span>
       </div>
+      {loading ? (
+        <TableSkeleton rows={5} cols={4} />
+      ) : (
       <div className="rounded-xl bg-white shadow-sm">
         <div className="border-b border-slate-200 px-6 py-4">
           <h2 className="text-lg font-semibold text-slate-900">Client Companies ({clients.length})</h2>
@@ -121,6 +126,7 @@ export default function OwnerClientsPage() {
           </table>
         </div>
       </div>
+      )}
 
       <div className="mt-6 rounded-xl bg-white p-6 shadow-sm">
         <h2 className="mb-4 text-lg font-semibold text-slate-900">Add Client Company</h2>

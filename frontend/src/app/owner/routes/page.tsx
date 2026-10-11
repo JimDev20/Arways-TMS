@@ -6,6 +6,7 @@ import { useRealtime } from '@/lib/realtime';
 import { Icons } from '@/lib/createLucideIcon';
 import { StatusPill } from '@/components/StatusPill';
 import { SearchField } from '@/components/SearchField';
+import { ListSkeleton } from '@/components/saas';
 import { errorMessage, type RouteFull, type StopRow } from '@/lib/types';
 
 function stopTime(s: StopRow): string {
@@ -17,12 +18,17 @@ export default function OwnerRoutesPage() {
   const [routes, setRoutes] = useState<RouteFull[]>([]);
   const [q, setQ] = useState('');
   const [err, setErr] = useState('');
+  const [loading, setLoading] = useState(true);
   const load = useCallback(() => {
     api<RouteFull[]>('/routes').then(setRoutes).catch((e: unknown) => {
       setErr(errorMessage(e, 'Could not load routes.'));
     });
   }, []);
-  useEffect(load, [load]);
+  useEffect(() => {
+    api<RouteFull[]>('/routes').then(setRoutes).catch((e: unknown) => {
+      setErr(errorMessage(e, 'Could not load routes.'));
+    }).finally(() => setLoading(false));
+  }, []);
   useRealtime('orders', load);
   useRealtime('stops', load);
 
@@ -44,6 +50,9 @@ export default function OwnerRoutesPage() {
         <span className="text-xs text-slate-500" role="status">{filtered.length} of {routes.length}</span>
       </div>
       {err && <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{err}</div>}
+      {loading ? (
+        <ListSkeleton rows={3} />
+      ) : (
       <div className="grid gap-4">
         {filtered.map((r) => {
           const done = r.stops.filter((s) => ['Delivered', 'Failed'].includes(s.status)).length;
@@ -101,6 +110,7 @@ export default function OwnerRoutesPage() {
           </div>
         )}
       </div>
+      )}
     </Shell>
   );
 }

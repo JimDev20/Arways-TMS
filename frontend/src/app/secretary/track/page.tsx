@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Shell } from '@/components/Shell';
-import { Card, Empty, NoAccess } from '@/components/saas';
+import { Card, Empty, ListSkeleton, NoAccess } from '@/components/saas';
 import { SearchField } from '@/components/SearchField';
 import { api, apiStatus } from '@/lib/supabase';
 import { errorMessage, type Order } from '@/lib/types';
@@ -13,14 +13,17 @@ export default function SecretaryTrackListPage() {
   const [q, setQ] = useState('');
   const [denied, setDenied] = useState(false);
   const [loadError, setLoadError] = useState('');
+  const [loading, setLoading] = useState(true);
 
   function load() {
+    setLoading(true);
     api<Order[]>('/orders')
       .then((o) => { setOrders(o); setDenied(false); setLoadError(''); })
       .catch((e: unknown) => {
         if (apiStatus(e) === 403) setDenied(true);
         else setLoadError(errorMessage(e, 'Could not load orders.'));
-      });
+      })
+      .finally(() => setLoading(false));
   }
   useEffect(() => {
     load();
@@ -39,6 +42,8 @@ export default function SecretaryTrackListPage() {
             {loadError}{' '}
             <button onClick={load} className="font-medium underline hover:no-underline">Retry</button>
           </div>
+        ) : loading ? (
+          <ListSkeleton rows={3} />
         ) : visible.length === 0 ? (
           orders.length === 0 ? (
             <Empty message="No orders to track yet." cta={<Link href="/secretary/new" className="btn-primary text-sm">Create order</Link>} />

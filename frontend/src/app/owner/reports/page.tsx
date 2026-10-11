@@ -20,6 +20,7 @@ export function Reports({ role }: { role: 'Owner' | 'Secretary' }) {
   const [from, setFrom] = useState(monthAgo());
   const [to, setTo] = useState(todayStr());
   const [loading, setLoading] = useState(true);
+  const [firstLoad, setFirstLoad] = useState(true);
   const [err, setErr] = useState('');
 
   const load = useCallback(() => {
@@ -44,7 +45,7 @@ export function Reports({ role }: { role: 'Owner' | 'Secretary' }) {
       setByDriver(bd);
     }).catch((e: unknown) => {
       setErr(errorMessage(e, 'Could not load report data.'));
-    }).finally(() => setLoading(false));
+    }).finally(() => { setLoading(false); setFirstLoad(false); });
   }, [from, to, role]);
   useEffect(() => {
     const qs = `?from=${from}&to=${to}`;
@@ -63,7 +64,7 @@ export function Reports({ role }: { role: 'Owner' | 'Secretary' }) {
       setByDriver(bd);
     }).catch((e: unknown) => {
       setErr(errorMessage(e, 'Could not load report data.'));
-    }).finally(() => setLoading(false));
+    }).finally(() => { setLoading(false); setFirstLoad(false); });
   }, [from, to, role]);
 
   function exportPDF() {
@@ -113,6 +114,7 @@ export function Reports({ role }: { role: 'Owner' | 'Secretary' }) {
             className="ml-2 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none" />
         </label>
         <button onClick={load} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">Apply</button>
+        {loading && !firstLoad && <span className="text-xs text-slate-400" role="status">Updating…</span>}
         <span className="text-xs text-slate-400">Summary, client and driver charts follow this range.</span>
       </div>
 
@@ -142,7 +144,7 @@ export function Reports({ role }: { role: 'Owner' | 'Secretary' }) {
           )}
         </div>
 
-        {loading ? (
+        {loading && firstLoad ? (
           <div className="flex flex-col items-center justify-center py-16">
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-[#0e7a70]" />
             <p className="mt-4 text-sm text-slate-500">Loading report data...</p>
