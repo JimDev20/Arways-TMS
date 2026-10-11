@@ -51,7 +51,7 @@ export default function OnboardingPage() {
         return;
       }
       if (!agree) {
-        setError('Please agree to the Terms of Service to continue.');
+        setError('Agree to the Terms of Service to continue.');
         return;
       }
     }

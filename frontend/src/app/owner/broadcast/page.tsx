@@ -24,7 +24,7 @@ export default function OwnerBroadcastPage() {
     e.preventDefault();
     const text = message.trim();
     if (!text) { setMsg({ type: 'error', text: 'Message is empty. Type the announcement first.' }); return; }
-    if (text.length > 500) { setMsg({ type: 'error', text: `Message is ${text.length}/500 characters. Shorten it to 500 or fewer.` }); return; }
+    if (text.length > 500) { setMsg({ type: 'error', text: `Announcement must be 500 characters or less. Remove ${text.length - 500} characters.` }); return; }
     if (!confirming) { setConfirming(true); setMsg(null); return; }
     setBusy(true); setMsg(null);
     try {
