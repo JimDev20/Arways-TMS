@@ -5,7 +5,7 @@ import { api } from '@/lib/supabase';
 import { Icons } from '@/lib/createLucideIcon';
 import { errorMessage, type ClientRow, type UserRow } from '@/lib/types';
 import { emailHint, isEmailLike, passwordHint } from '@/lib/errors';
-import { FieldHint } from '@/components/FieldHint';
+import { FieldHint, FormErrorBanner, type FormErrorItem } from '@/components/FieldHint';
 
 const ROLE_FILTERS = ['All', 'Owner', 'Secretary', 'Client', 'Driver'];
 
@@ -15,6 +15,8 @@ export default function UsersPage() {
   const [form, setForm] = useState({ email: '', password: '', fullName: '', role: 'Driver', phone: '', licenseNo: '', clientId: '' });
   const [err, setErr] = useState('');
   const [okMsg, setOkMsg] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<FormErrorItem[]>([]);
+  const fieldErr = (id: string) => fieldErrors.find((e) => e.fieldId === id)?.message;
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [q, setQ] = useState('');
@@ -43,13 +45,16 @@ export default function UsersPage() {
 
   async function create(e: React.FormEvent) {
     e.preventDefault(); setErr(''); setOkMsg('');
-    if (!form.fullName.trim()) { setErr('Enter the member\u2019s full name.'); return; }
-    if (!form.email.trim()) { setErr('Enter the member\u2019s email address.'); return; }
-    if (!isEmailLike(form.email)) { setErr(`“${form.email.trim()}” does not look like an email. It must look like name@example.com.`); return; }
-    if (!form.phone.trim()) { setErr('Enter the member\u2019s contact number. Dispatch and drivers need it.'); return; }
-    if (!/^[+\d][\d\s\-()]{6,19}$/.test(form.phone.trim())) { setErr(`“${form.phone.trim()}” does not look like a phone number. Use 7–20 characters: digits, spaces, +, -.`); return; }
-    if (form.password.length < 10) { setErr(`Password is ${form.password.length}/10 characters. Type at least 10 characters (max 64).`); return; }
-    if (form.role === 'Client' && !form.clientId) { setErr('Pick the client company this login belongs to, so their orders and tracking link up.'); return; }
+    const problems: FormErrorItem[] = [];
+    if (!form.fullName.trim()) problems.push({ fieldId: 'new-user-name', message: 'Enter the member’s full name.' });
+    if (!form.email.trim()) problems.push({ fieldId: 'new-user-email', message: 'Enter the member’s email address.' });
+    else if (!isEmailLike(form.email)) problems.push({ fieldId: 'new-user-email', message: `“${form.email.trim()}” does not look like an email. It must look like name@example.com.` });
+    if (!form.phone.trim()) problems.push({ fieldId: 'new-user-phone', message: 'Enter the member’s contact number. Dispatch and drivers need it.' });
+    else if (!/^[+\d][\d\s\-()]{6,19}$/.test(form.phone.trim())) problems.push({ fieldId: 'new-user-phone', message: `“${form.phone.trim()}” does not look like a phone number. Use 7–20 characters: digits, spaces, +, -.` });
+    if (form.password.length < 10) problems.push({ fieldId: 'new-user-password', message: `Password is ${form.password.length}/10 characters. Type at least 10 characters (max 64).` });
+    if (form.role === 'Client' && !form.clientId) problems.push({ fieldId: 'new-user-client', message: 'Pick the client company this login belongs to, so their orders and tracking link up.' });
+    setFieldErrors(problems);
+    if (problems.length > 0) return;
     setBusy(true);
     try {
       const created = await api<{ userId: string; email: string; fullName: string; role: string }>('/auth/register', {
@@ -70,6 +75,7 @@ export default function UsersPage() {
         : '';
       setOkMsg(`${created.fullName} (${created.email}) was added as ${created.role}.${extra} They can now log in.`);
       setForm({ email: '', password: '', fullName: '', role: 'Driver', phone: '', licenseNo: '', clientId: '' });
+      setFieldErrors([]);
     } catch (e: unknown) {
       setErr(errorMessage(e, 'Could not create the user. Check that the email is not already registered, then try again.'));
     }
@@ -243,41 +249,46 @@ export default function UsersPage() {
             {okMsg}
           </div>
         )}
+        <FormErrorBanner errors={fieldErrors} />
         <form onSubmit={create} className="grid gap-4 max-w-lg">
           <div className="grid gap-2">
             <label className="block text-sm font-medium text-slate-700" htmlFor="new-user-name">Full Name *</label>
             <input id="new-user-name"
+              aria-describedby={fieldErr('new-user-name') ? 'new-user-name-error' : undefined}
               className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
               placeholder="John Doe"
               value={form.fullName}
               onChange={(e) => setForm({ ...form, fullName: e.target.value })}
               required
             />
+            {fieldErr('new-user-name') && <FieldHint id="new-user-name-error" tone="error">{fieldErr('new-user-name')}</FieldHint>}
           </div>
           <div className="grid gap-2">
             <label className="block text-sm font-medium text-slate-700" htmlFor="new-user-email">Email *</label>
             <input id="new-user-email"
               type="email"
-              aria-describedby={emailHint(form.email) ? 'new-user-email-hint' : undefined}
+              aria-describedby={(fieldErr('new-user-email') || emailHint(form.email)) ? 'new-user-email-hint' : undefined}
               className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
               placeholder="john@example.com"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
               required
             />
-            {emailHint(form.email) && <FieldHint id="new-user-email-hint" tone="error">{emailHint(form.email)}</FieldHint>}
+            {(fieldErr('new-user-email') || emailHint(form.email)) && <FieldHint id="new-user-email-hint" tone="error">{fieldErr('new-user-email') || emailHint(form.email)}</FieldHint>}
           </div>
           <div className="grid gap-2">
             <label className="block text-sm font-medium text-slate-700" htmlFor="new-user-phone">Contact Number *</label>
             <input id="new-user-phone"
               type="tel"
               autoComplete="tel"
+              aria-describedby={fieldErr('new-user-phone') ? 'new-user-phone-error' : undefined}
               className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
               placeholder="0917 123 4567"
               value={form.phone}
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
               required
             />
+            {fieldErr('new-user-phone') && <FieldHint id="new-user-phone-error" tone="error">{fieldErr('new-user-phone')}</FieldHint>}
           </div>
           <div className="grid gap-2">
             <label className="block text-sm font-medium text-slate-700" htmlFor="new-user-password">Password (min 10 characters) *</label>
@@ -304,8 +315,8 @@ export default function UsersPage() {
                 {showPassword ? <Icons.EyeOff className="h-4 w-4" /> : <Icons.Eye className="h-4 w-4" />}
               </button>
             </div>
-            <FieldHint id="new-user-password-hint" tone={form.password && form.password.length < 8 ? 'error' : 'hint'}>
-              {form.password ? (passwordHint(form.password) || 'Meets the 10-character rule.') : 'Use at least 10 characters. Share it once, privately, so they can log in.'}
+            <FieldHint id="new-user-password-hint" tone={fieldErr('new-user-password') || (form.password && form.password.length < 8) ? 'error' : 'hint'}>
+              {fieldErr('new-user-password') ?? (form.password ? (passwordHint(form.password) || 'Meets the 10-character rule.') : 'Use at least 10 characters. Share it once, privately, so they can log in.')}
             </FieldHint>
           </div>
           <div className="grid gap-2">
@@ -336,6 +347,7 @@ export default function UsersPage() {
             <div className="grid gap-2">
               <label className="block text-sm font-medium text-slate-700" htmlFor="new-user-client">Client Company *</label>
               <select id="new-user-client"
+                aria-describedby={fieldErr('new-user-client') ? 'new-user-client-error' : undefined}
                 className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
                 value={form.clientId}
                 onChange={(e) => setForm({ ...form, clientId: e.target.value })}
@@ -346,6 +358,7 @@ export default function UsersPage() {
                   <option key={c.clientId} value={c.clientId}>{c.companyName} ({c.email})</option>
                 ))}
               </select>
+              {fieldErr('new-user-client') && <FieldHint id="new-user-client-error" tone="error">{fieldErr('new-user-client')}</FieldHint>}
               <p className="text-xs text-slate-400">
                 {clients.length === 0
                   ? 'No client companies yet. Add the company on the Clients page first.'
