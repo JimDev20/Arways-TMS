@@ -460,7 +460,7 @@ export interface SearchDocs {
   users?: UserRow[];
 }
 
-export function GlobalSearch({ docs, base }: { docs: SearchDocs; base: string }) {
+export function GlobalSearch({ docs, base, placeholder }: { docs: SearchDocs; base: string; placeholder: string }) {
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(false);
   const results = useMemo(() => {
@@ -493,7 +493,7 @@ export function GlobalSearch({ docs, base }: { docs: SearchDocs; base: string })
         onChange={(e) => { setQ(e.target.value); setOpen(true); }}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         onFocus={() => setOpen(true)}
-        placeholder="Search…"
+        placeholder={placeholder}
         aria-label="Global search"
         className="w-52 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm focus:border-blue-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 lg:w-64"
       />

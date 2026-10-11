@@ -118,7 +118,11 @@ function HeaderSearch({ role }: { role: Role }) {
     };
   }, [role]);
   const base = role === 'Owner' ? '/owner' : role === 'Secretary' ? '/secretary' : role === 'Client' ? '/client' : '/driver';
-  return <GlobalSearch docs={docs} base={base} />;
+  const placeholder =
+    role === 'Owner' ? 'Search orders, routes, trucks, users…' :
+    role === 'Secretary' ? 'Search orders, routes…' :
+    'Search my orders…';
+  return <GlobalSearch docs={docs} base={base} placeholder={placeholder} />;
 }
 
 export function Shell({ role, title, children }: { role: Role; title: string; children: React.ReactNode }) {

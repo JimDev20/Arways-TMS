@@ -18,7 +18,7 @@ export default function ClientTrackListPage() {
 
   return (
     <Shell role="Client" title="Track Orders">
-      <Card title={`My shipments (${visible.length})`} action={<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search reference…" aria-label="Search orders" className="w-48 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-900" />}>
+      <Card title={`My shipments (${visible.length})`} action={<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search my orders by reference (e.g. JFC-2026-00123)…" aria-label="Search orders" className="w-48 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-900" />}>
         {visible.length === 0 ? (
           <Empty message="No orders to track yet." cta={<Link href="/client/new" className="btn-primary text-sm">Create order</Link>} />
         ) : (

@@ -141,7 +141,7 @@ export default function OwnerAuditPage() {
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search logs…"
+            placeholder="Search logs by actor, action, or order ref…"
             aria-label="Search audit logs"
             className="field sm:max-w-xs"
           />
