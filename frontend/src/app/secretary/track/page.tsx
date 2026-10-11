@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Shell } from '@/components/Shell';
-import { Card, Empty } from '@/components/saas';
+import { Card, Empty, ListSkeleton } from '@/components/saas';
 import { api } from '@/lib/supabase';
 import type { Order } from '@/lib/types';
 
@@ -10,8 +10,9 @@ import type { Order } from '@/lib/types';
 export default function SecretaryTrackListPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [q, setQ] = useState('');
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
-    api<Order[]>('/orders').then(setOrders).catch(() => {});
+    api<Order[]>('/orders').then(setOrders).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   const visible = orders.filter((o) => !q.trim() || o.orderReference.toLowerCase().includes(q.toLowerCase()));
@@ -19,7 +20,9 @@ export default function SecretaryTrackListPage() {
   return (
     <Shell role="Secretary" title="Track Orders">
       <Card title={`All shipments (${visible.length})`} action={<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by order reference (e.g. JFC-2026-00123)…" aria-label="Search orders" className="w-48 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-900" />}>
-        {visible.length === 0 ? (
+        {loading ? (
+          <ListSkeleton rows={3} />
+        ) : visible.length === 0 ? (
           <Empty message="No orders to track yet." cta={<Link href="/secretary/new" className="btn-primary text-sm">Create order</Link>} />
         ) : (
           <ul className="divide-y divide-slate-100 dark:divide-slate-800">

@@ -23,6 +23,42 @@ export function Card({ title, action, children, className = '' }: { title?: stri
   );
 }
 
+/**
+ * Loading skeletons (ARWAYS-UI-IMPROVEMENTS §3.3, GitLab [U11]).
+ * - TableSkeleton: same row height and column layout as the loaded table.
+ * - ListSkeleton: matching blocks for card lists.
+ * First load only: when lists refetch (realtime, filters), old rows stay on
+ * screen. Never combined with a spinner on the same region. No live region
+ * needed. Shapes are basic grayscale rounded bars with a horizontal pulse.
+ */
+export function TableSkeleton({ rows = 5, cols = 4 }: { rows?: number; cols?: number }) {
+  return (
+    <div className="animate-pulse overflow-hidden rounded-xl bg-white shadow-sm" aria-hidden>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="flex gap-4 border-b border-slate-100 px-6 py-3 last:border-0">
+          {Array.from({ length: cols }).map((_, j) => (
+            <span key={j} className="h-4 flex-1 rounded bg-slate-100" style={j === 0 ? { maxWidth: '30%' } : undefined} />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function ListSkeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <div className="grid gap-4" aria-hidden>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="animate-pulse rounded-xl bg-white p-6 shadow-sm">
+          <div className="h-4 w-1/3 rounded bg-slate-100" />
+          <div className="mt-3 h-3 w-2/3 rounded bg-slate-100" />
+          <div className="mt-2 h-3 w-1/2 rounded bg-slate-100" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function Empty({ message, cta }: { message: string; cta?: React.ReactNode }) {
   return (
     <div className="flex flex-col items-center justify-center py-8 text-center">

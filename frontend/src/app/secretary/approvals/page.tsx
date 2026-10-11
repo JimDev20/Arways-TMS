@@ -5,16 +5,18 @@ import { api } from '@/lib/supabase';
 import { useRealtime } from '@/lib/realtime';
 import { Icons } from '@/lib/createLucideIcon';
 import { ApprovalCard } from '@/app/secretary/page';
+import { ListSkeleton } from '@/components/saas';
 import type { Order } from '@/lib/types';
 
 export default function ApprovalsPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [q, setQ] = useState('');
+  const [loading, setLoading] = useState(true);
   const load = useCallback(() => {
     api<Order[]>('/orders?status=Pending').then(setOrders).catch(() => {});
   }, []);
   useEffect(() => {
-    api<Order[]>('/orders?status=Pending').then(setOrders).catch(() => {});
+    api<Order[]>('/orders?status=Pending').then(setOrders).catch(() => {}).finally(() => setLoading(false));
   }, []);
   useRealtime('orders', load);
 
@@ -37,7 +39,9 @@ export default function ApprovalsPage() {
           aria-label="Search approval queue"
         />
       </div>
-      {filtered.length > 0 ? (
+      {loading ? (
+        <ListSkeleton rows={3} />
+      ) : filtered.length > 0 ? (
         <div className="rounded-xl bg-white shadow-sm">
           <div className="border-b border-slate-200 px-6 py-4">
             <div className="flex items-center justify-between">

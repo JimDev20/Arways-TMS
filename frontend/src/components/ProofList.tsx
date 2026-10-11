@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/supabase';
 import { Icons } from '@/lib/createLucideIcon';
+import { ListSkeleton } from '@/components/saas';
 import { errorMessage, type ProofItem } from '@/lib/types';
 
 /** Shared proof-of-delivery list. Role only affects the surrounding Shell. */
@@ -31,7 +32,7 @@ export function ProofList() {
     </div>
   );
   if (loading) {
-    return <p className="rounded-xl bg-white py-10 text-center text-sm text-slate-500 shadow-sm">Loading proof records…</p>;
+    return <ListSkeleton rows={4} />;
   }
   if (items.length === 0) {
     return <p className="rounded-xl bg-white py-10 text-center text-sm text-slate-400 shadow-sm">No deliveries completed yet. Proof photos appear here after drivers mark stops delivered.</p>;

@@ -7,6 +7,7 @@ import { api } from '@/lib/supabase';
 import { Icons } from '@/lib/createLucideIcon';
 import { errorMessage, type Order, type OrderDetail } from '@/lib/types';
 import { PriorityBadge } from '@/components/PriorityBadge';
+import { TableSkeleton } from '@/components/saas';
 
 const STATUSES = ['All', 'Pending', 'Approved', 'In Transit', 'Completed', 'Rejected', 'Cancelled'];
 
@@ -16,8 +17,9 @@ export default function OwnerOrdersPage() {
   const [status, setStatus] = useState('All');
   const [detail, setDetail] = useState<OrderDetail | { error: string } | null>(null);
   const [detailId, setDetailId] = useState('');
+  const [loading, setLoading] = useState(true);
   const loadOrders = useCallback(() => {
-    api<Order[]>('/orders').then(setOrders).catch(() => {});
+    api<Order[]>('/orders').then(setOrders).catch(() => {}).finally(() => setLoading(false));
   }, []);
   useEffect(() => {
     let live = true;
@@ -87,6 +89,9 @@ export default function OwnerOrdersPage() {
         <span className="text-xs text-slate-500">{filtered.length} of {orders.length}</span>
       </div>
 
+      {loading ? (
+        <TableSkeleton rows={5} cols={6} />
+      ) : (
       <div className="rounded-xl bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
@@ -175,6 +180,7 @@ export default function OwnerOrdersPage() {
           </table>
         </div>
       </div>
+      )}
     </Shell>
   );
 }

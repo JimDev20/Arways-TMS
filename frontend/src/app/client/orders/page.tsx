@@ -6,6 +6,7 @@ import { api } from '@/lib/supabase';
 import { Icons } from '@/lib/createLucideIcon';
 import type { Order } from '@/lib/types';
 import { PriorityBadge } from '@/components/PriorityBadge';
+import { TableSkeleton } from '@/components/saas';
 
 const STATUSES = ['All', 'Pending', 'Approved', 'In Transit', 'Completed', 'Rejected', 'Cancelled'];
 
@@ -13,8 +14,9 @@ export default function ClientOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('All');
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
-    api<Order[]>('/orders').then(setOrders).catch(() => {});
+    api<Order[]>('/orders').then(setOrders).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   const filtered = orders.filter((o) => {
@@ -48,6 +50,9 @@ export default function ClientOrders() {
         </select>
         <span className="text-xs text-slate-500">{filtered.length} of {orders.length}</span>
       </div>
+      {loading ? (
+        <TableSkeleton rows={5} cols={4} />
+      ) : (
       <div className="rounded-xl bg-white shadow-sm">
         <div className="border-b border-slate-200 px-6 py-4">
           <div className="flex items-center gap-2">
@@ -109,6 +114,7 @@ export default function ClientOrders() {
           </table>
         </div>
       </div>
+      )}
     </Shell>
   );
 }

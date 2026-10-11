@@ -5,6 +5,7 @@ import { DriverBadge } from '@/components/DriverBadge';
 import { api } from '@/lib/supabase';
 import { Icons } from '@/lib/createLucideIcon';
 import { errorMessage, type MaintenanceLog, type TruckWithDriver } from '@/lib/types';
+import { TableSkeleton } from '@/components/saas';
 
 /**
  * Secretary Fleet (Improvement Roadmap #10).
@@ -17,6 +18,7 @@ export default function SecretaryFleetPage() {
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('All');
   const [err, setErr] = useState('');
+  const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState('');
   const [maint, setMaint] = useState<MaintenanceLog[]>([]);
   const [mDate, setMDate] = useState(new Date().toISOString().slice(0, 10));
@@ -29,7 +31,8 @@ export default function SecretaryFleetPage() {
     let live = true;
     api<TruckWithDriver[]>('/trucks')
       .then((t) => { if (live) setTrucks(t); })
-      .catch((e) => { if (live) setErr(errorMessage(e, 'Could not load fleet.')); });
+      .catch((e) => { if (live) setErr(errorMessage(e, 'Could not load fleet.')); })
+      .finally(() => { if (live) setLoading(false); });
     return () => { live = false; };
   }, []);
 
@@ -94,6 +97,9 @@ export default function SecretaryFleetPage() {
         </select>
         <span className="self-center text-xs text-slate-500">{filtered.length} of {trucks.length}</span>
       </div>
+      {loading ? (
+        <TableSkeleton rows={5} cols={5} />
+      ) : (
       <div className="overflow-x-auto rounded-xl bg-white shadow-sm">
         <table className="w-full text-sm">
           <thead>
@@ -123,6 +129,7 @@ export default function SecretaryFleetPage() {
         </table>
         {filtered.length === 0 && <p className="py-8 text-center text-sm text-slate-400">No trucks match. Try a different search or filter.</p>}
       </div>
+      )}
       {selected && (
         <div className="card mt-6 p-6">
           <h2 className="text-lg font-semibold">Vehicle Details: {selected.plateNumber}</h2>

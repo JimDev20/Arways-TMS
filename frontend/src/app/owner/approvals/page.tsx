@@ -3,17 +3,19 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Shell } from '@/components/Shell';
 import { api } from '@/lib/supabase';
+import { ListSkeleton } from '@/components/saas';
 import { useRealtime } from '@/lib/realtime';
 import { Icons } from '@/lib/createLucideIcon';
 import type { Order } from '@/lib/types';
 
 export default function OwnerApprovalsPage() {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
   const load = useCallback(() => {
     api<Order[]>('/orders?status=Pending').then(setOrders).catch(() => {});
   }, []);
   useEffect(() => {
-    api<Order[]>('/orders?status=Pending').then(setOrders).catch(() => {});
+    api<Order[]>('/orders?status=Pending').then(setOrders).catch(() => {}).finally(() => setLoading(false));
   }, []);
   useRealtime('orders', load);
 
@@ -37,7 +39,9 @@ export default function OwnerApprovalsPage() {
           aria-label="Search approval queue"
         />
       </div>
-      {filtered.length > 0 ? (
+      {loading ? (
+        <ListSkeleton rows={3} />
+      ) : filtered.length > 0 ? (
         <div className="rounded-xl bg-white shadow-sm">
           <div className="border-b border-slate-200 px-6 py-4">
             <div className="flex items-center justify-between">

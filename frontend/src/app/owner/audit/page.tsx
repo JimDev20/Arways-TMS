@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Shell } from '@/components/Shell';
-import { Card, Empty } from '@/components/saas';
+import { Card, Empty, TableSkeleton } from '@/components/saas';
 import { api } from '@/lib/supabase';
 import { useRealtime } from '@/lib/realtime';
 import { Icons } from '@/lib/createLucideIcon';
@@ -30,6 +30,7 @@ export default function OwnerAuditPage() {
   const [q, setQ] = useState('');
   const [action, setAction] = useState('All');
   const [selected, setSelected] = useState<LogRow | null>(null);
+  const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
 
   const load = useCallback(() => {
@@ -43,9 +44,11 @@ export default function OwnerAuditPage() {
     });
   }, []);
   useEffect(() => {
-    api<Order[]>('/orders').then(setOrders).catch(() => {});
-    api<RouteFull[]>('/routes').then(setRoutes).catch(() => {});
-    api<NotificationItem[]>('/notifications').then(setNotifs).catch(() => {});
+    Promise.all([
+      api<Order[]>('/orders').then(setOrders).catch(() => {}),
+      api<RouteFull[]>('/routes').then(setRoutes).catch(() => {}),
+      api<NotificationItem[]>('/notifications').then(setNotifs).catch(() => {}),
+    ]).finally(() => setLoading(false));
   }, []);
   useRealtime('orders', load);
   useRealtime('stops', load);
@@ -163,7 +166,9 @@ export default function OwnerAuditPage() {
             ))}
           </select>
         </div>
-        {filtered.length === 0 ? (
+        {loading ? (
+          <TableSkeleton rows={5} cols={4} />
+        ) : filtered.length === 0 ? (
           <Empty message="No audit entries match your filters." />
         ) : (
           <div className="overflow-x-auto">

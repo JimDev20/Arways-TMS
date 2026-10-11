@@ -6,6 +6,7 @@ import { api } from '@/lib/supabase';
 import { Icons } from '@/lib/createLucideIcon';
 import { errorMessage, TRUCK_SIZES, type MaintenanceLog, type Truck, type TruckSize, type TruckWithDriver, type UserRow } from '@/lib/types';
 import { FieldHint } from '@/components/FieldHint';
+import { TableSkeleton } from '@/components/saas';
 
 function todayStr() { return new Date().toISOString().slice(0, 10); }
 
@@ -32,6 +33,7 @@ export default function FleetPage() {
   const [err, setErr] = useState('');
   const [okMsg, setOkMsg] = useState('');
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState('');
   const [edit, setEdit] = useState({ plateNumber: '', truckType: 'Refrigerated', truckSize: '6W' as TruckSize, capacityKg: 2000, status: 'Available', assignedDriverId: '' });
   const [mDate, setMDate] = useState(todayStr());
@@ -93,6 +95,8 @@ export default function FleetPage() {
         }
       } catch {
         /* list stays empty: user can retry */
+      } finally {
+        if (live) setLoading(false);
       }
     })();
     return () => {
@@ -193,6 +197,9 @@ export default function FleetPage() {
       </div>
 
       {/* Trucks Table */}
+      {loading ? (
+        <TableSkeleton rows={5} cols={7} />
+      ) : (
       <div className="rounded-xl bg-white shadow-sm">
         <div className="border-b border-slate-200 px-6 py-4">
           <div className="flex items-center gap-2">
@@ -263,6 +270,7 @@ export default function FleetPage() {
           </table>
         </div>
       </div>
+      )}
 
       {/* Vehicle details + edit */}
       {selected && (

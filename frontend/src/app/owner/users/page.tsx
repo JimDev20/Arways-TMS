@@ -6,6 +6,7 @@ import { Icons } from '@/lib/createLucideIcon';
 import { errorMessage, type ClientRow, type UserRow } from '@/lib/types';
 import { emailHint, isEmailLike, passwordMissing } from '@/lib/errors';
 import { FieldHint, FormErrorBanner, PasswordChecklist, type FormErrorItem } from '@/components/FieldHint';
+import { TableSkeleton } from '@/components/saas';
 
 const ROLE_FILTERS = ['All', 'Owner', 'Secretary', 'Client', 'Driver'];
 
@@ -21,6 +22,7 @@ export default function UsersPage() {
   const [busy, setBusy] = useState(false);
   const [q, setQ] = useState('');
   const [roleFilter, setRoleFilter] = useState('All');
+  const [loading, setLoading] = useState(true);
   const [resetId, setResetId] = useState('');
   const [newPw, setNewPw] = useState('');
   const [showNewPw, setShowNewPw] = useState(false);
@@ -30,7 +32,7 @@ export default function UsersPage() {
     setUsers(await api<UserRow[]>('/users'));
   }
   useEffect(() => {
-    api<UserRow[]>('/users').then(setUsers).catch(() => {});
+    api<UserRow[]>('/users').then(setUsers).catch(() => {}).finally(() => setLoading(false));
     api<ClientRow[]>('/clients').then(setClients).catch(() => {});
   }, []);
 
@@ -155,6 +157,9 @@ export default function UsersPage() {
       </div>
 
       {/* Users Table */}
+      {loading ? (
+        <TableSkeleton rows={5} cols={6} />
+      ) : (
       <div className="rounded-xl bg-white shadow-sm">
         <div className="border-b border-slate-200 px-6 py-4">
           <div className="flex items-center gap-2">
@@ -231,6 +236,7 @@ export default function UsersPage() {
           </table>
         </div>
       </div>
+      )}
 
       {/* Add User Form */}
       <div className="mt-6 rounded-xl bg-white p-6 shadow-sm">
