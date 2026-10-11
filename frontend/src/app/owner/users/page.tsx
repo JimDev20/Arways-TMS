@@ -18,6 +18,9 @@ export default function UsersPage() {
   const [okMsg, setOkMsg] = useState('');
   const [fieldErrors, setFieldErrors] = useState<FormErrorItem[]>([]);
   const fieldErr = (id: string) => fieldErrors.find((e) => e.fieldId === id)?.message;
+  const [serverErr, setServerErr] = useState('');
+  const [emailTouched, setEmailTouched] = useState(false);
+  const emailLiveErr = emailTouched ? emailHint(form.email) : '';
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [q, setQ] = useState('');
@@ -45,7 +48,7 @@ export default function UsersPage() {
   });
 
   async function create(e: React.FormEvent) {
-    e.preventDefault(); setErr(''); setOkMsg('');
+    e.preventDefault(); setErr(''); setOkMsg(''); setServerErr(''); setEmailTouched(true);
     const problems: FormErrorItem[] = [];
     if (!form.fullName.trim()) problems.push({ fieldId: 'new-user-name', message: 'Enter the member’s full name.' });
     if (!form.email.trim()) problems.push({ fieldId: 'new-user-email', message: 'Enter the member’s email address.' });
@@ -78,8 +81,9 @@ export default function UsersPage() {
       setOkMsg(`${created.fullName} (${created.email}) was added as ${created.role}.${extra} They can now log in.`);
       setForm({ email: '', password: '', fullName: '', role: 'Driver', phone: '', licenseNo: '', clientId: '' });
       setFieldErrors([]);
+      setServerErr('');
     } catch (e: unknown) {
-      setErr(errorMessage(e, 'Could not create the user. Check that the email is not already registered, then try again.'));
+      setServerErr(errorMessage(e, 'Could not create the user. Check that the email is not already registered, then try again.'));
     }
     finally { setBusy(false); }
   }
@@ -266,14 +270,15 @@ export default function UsersPage() {
             <label className="block text-sm font-medium text-slate-700" htmlFor="new-user-email">Email *</label>
             <input id="new-user-email"
               type="email"
-              aria-describedby={(fieldErr('new-user-email') || emailHint(form.email)) ? 'new-user-email-hint' : undefined}
+              aria-describedby={(fieldErr('new-user-email') || emailLiveErr) ? 'new-user-email-hint' : undefined}
               className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
               placeholder="john@example.com"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
+              onBlur={() => setEmailTouched(true)}
               required
             />
-            {(fieldErr('new-user-email') || emailHint(form.email)) && <FieldHint id="new-user-email-hint" tone="error">{fieldErr('new-user-email') || emailHint(form.email)}</FieldHint>}
+            {(fieldErr('new-user-email') || emailLiveErr) && <FieldHint id="new-user-email-hint" tone="error">{fieldErr('new-user-email') || emailLiveErr}</FieldHint>}
           </div>
           <div className="grid gap-2">
             <label className="block text-sm font-medium text-slate-700" htmlFor="new-user-phone">Contact Number *</label>
@@ -363,6 +368,12 @@ export default function UsersPage() {
                   ? 'No client companies yet. Add the company on the Clients page first.'
                   : 'Links this login so their orders and tracking connect automatically.'}
               </p>
+            </div>
+          )}
+          {serverErr && (
+            <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center gap-2" role="alert">
+              <Icons.AlertCircle className="h-5 w-5 shrink-0" />
+              {serverErr}
             </div>
           )}
           <button

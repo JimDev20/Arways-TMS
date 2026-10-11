@@ -17,6 +17,9 @@ export default function LoginPage() {
   const [remember, setRemember] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+  const showEmailError = (emailTouched || submitAttempted) && emailHint(email);
   const [prefilled, setPrefilled] = useState(false);
   // Caps Lock state for the password field. Event-driven only: typing the
   // password never leaves the browser here, so this reveals nothing about
@@ -36,6 +39,7 @@ export default function LoginPage() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    setSubmitAttempted(true);
     setBusy(true); setError('');
     if (!email.trim() && !password) {
       setBusy(false);
@@ -108,14 +112,15 @@ export default function LoginPage() {
                   type="email"
                   autoComplete="username"
                   placeholder="name@example.com"
-                  aria-describedby={emailHint(email) ? 'email-hint' : undefined}
+                  aria-describedby={showEmailError ? 'email-hint' : undefined}
                   className="block w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm text-slate-900 placeholder-slate-400 focus:border-[#0e7a70] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#0e7a70] transition-all"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  onBlur={() => setEmailTouched(true)}
                   required
                 />
               </div>
-              {emailHint(email) && <FieldHint id="email-hint" tone="error">{emailHint(email)}</FieldHint>}
+              {showEmailError ? <FieldHint id="email-hint" tone="error">{emailHint(email)}</FieldHint> : null}
             </div>
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-slate-700" htmlFor="password">Password</label>
