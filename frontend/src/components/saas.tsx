@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import type { Order, RouteFull, StopRow, TruckWithDriver, UserRow } from '@/lib/types';
 import { Icons } from '@/lib/createLucideIcon';
@@ -386,6 +387,10 @@ export function CalendarView({ orders, onPick }: { orders: Order[]; onPick: (dat
 
 export function HelpCenter({ role }: { role: string }) {
   const [open, setOpen] = useState<number | null>(0);
+  const pathname = usePathname();
+  const reportHref =
+    `mailto:support@arways.com?subject=${encodeURIComponent(`Problem report (${role}, ${pathname})`)}` +
+    `&body=${encodeURIComponent(`Role: ${role}\nScreen: ${pathname}\n\nWhat happened:\n\nWhat I expected:\n`)}`;
   const faqs: { q: string; a: string }[] =
     role === 'Driver'
       ? [
@@ -442,7 +447,11 @@ export function HelpCenter({ role }: { role: string }) {
           <a href="mailto:support@arways.com" className="btn-ghost inline-flex items-center gap-2 text-sm font-medium">
             <Icons.Mail className="h-4 w-4" />Email support
           </a>
+          <a href={reportHref} className="btn-ghost inline-flex items-center gap-2 text-sm font-medium">
+            <Icons.AlertCircle className="h-4 w-4" />Report a problem
+          </a>
         </div>
+        <p className="mt-3 text-xs text-slate-400">Report a problem opens an email with your role and screen filled in — add what happened and what you expected.</p>
       </div>
     </div>
   );
