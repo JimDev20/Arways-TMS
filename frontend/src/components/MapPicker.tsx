@@ -198,14 +198,15 @@ export default function MapPicker({
         <details className="text-xs text-slate-500">
           <summary className="cursor-pointer font-medium text-slate-600 hover:underline">Enter coordinates</summary>
           <span className="mt-1 flex flex-wrap items-center gap-2 text-sm">
-            <label>Lat <input className="w-28 rounded border px-1" value={mlat} onChange={(e) => setMlat(e.target.value)} inputMode="decimal" /></label>
-            <label>Lon <input className="w-28 rounded border px-1" value={mlon} onChange={(e) => setMlon(e.target.value)} inputMode="decimal" /></label>
+            <label>Lat <input className="w-28 rounded border px-1" value={mlat} onChange={(e) => setMlat(e.target.value)} inputMode="decimal" placeholder="14.6760" aria-label="Latitude" /></label>
+            <label>Lon <input className="w-28 rounded border px-1" value={mlon} onChange={(e) => setMlon(e.target.value)} inputMode="decimal" placeholder="121.0437" aria-label="Longitude" /></label>
             <button
               type="button"
               className="rounded border px-2 py-1"
               onClick={() => { const a = Number(mlat), o = Number(mlon); if (Number.isFinite(a) && Number.isFinite(o)) pick(a, o, `${mlat}, ${mlon}`); else setSearchMsg('Those coordinates are not numbers. Type numeric latitude and longitude, then press Set.'); }}
             >Set</button>
           </span>
+          <p className="mt-1">Format: lat, lng (e.g. 14.6760, 121.0437).</p>
         </details>
       </div>
       <p className="mt-1 text-xs text-slate-400">Philippines only (lat 4–21, lng 116–127). Search first for exact stores, then verify the pin on the map — click the map only for fine-tuning.</p>
