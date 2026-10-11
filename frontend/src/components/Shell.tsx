@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { NAV, type NotificationItem, type Order, type Role, type RouteFull, type SessionUser, type TruckWithDriver, type UserRow } from '@/lib/types';
 import { api } from '@/lib/supabase';
 import { useRealtime } from '@/lib/realtime';
-import { centerHrefFor, notificationHref } from '@/lib/notifications';
+import { centerHrefFor, kindOf, notificationHref } from '@/lib/notifications';
 import { Icons } from '@/lib/createLucideIcon';
 import { useTheme } from '@/lib/theme';
 import { useStoredString } from '@/lib/storage';
@@ -280,6 +280,63 @@ function isPersistentToast(n: NotificationItem) {
   return PERSISTENT_TOAST_TYPES.has(String(n.notificationType ?? ''));
 }
 
+/** Carbon toast statuses [U2]: error / success / warning / informational. */
+function toastStatus(n: NotificationItem): 'error' | 'success' | 'warning' | 'info' {
+  switch (String(n.notificationType ?? '')) {
+    case 'stop_failed':
+    case 'order_rejected':
+    case 'order_cancelled':
+      return 'error';
+    case 'order_completed':
+    case 'order_approved':
+      return 'success';
+    case 'order_pending':
+      return 'warning';
+    default:
+      return 'info';
+  }
+}
+
+const TOAST_STATUS_STYLE = {
+  error: { Icon: Icons.XCircle, className: 'text-red-600' },
+  success: { Icon: Icons.CheckCircle, className: 'text-green-600' },
+  warning: { Icon: Icons.AlertTriangle, className: 'text-amber-600' },
+  info: { Icon: Icons.Info, className: 'text-blue-600' },
+} as const;
+
+/** Next step every error toast carries [U2] (ARWAYS wording). */
+const TOAST_NEXT_STEP: Record<string, string> = {
+  stop_failed: 'Open it to reassign the stop or contact the driver.',
+  order_rejected: 'Open it to fix the details and create a new order.',
+  order_cancelled: 'Open the order to review the reason.',
+};
+
+/** Kind icon per bell item (same kindOf as the center). */
+const KIND_ICON = {
+  red: Icons.AlertCircle,
+  yellow: Icons.Clock,
+  green: Icons.CheckCircle,
+  blue: Icons.Info,
+  gray: Icons.Bell,
+} as const;
+
+const KIND_TEXT = {
+  red: 'text-red-600',
+  yellow: 'text-amber-600',
+  green: 'text-green-600',
+  blue: 'text-blue-600',
+  gray: 'text-slate-400',
+} as const;
+
+/** D4 default: toast only events that need attention now; the rest go to the bell only. */
+const ATTENTION_TOAST_TYPES = new Set([
+  'stop_failed',
+  'order_rejected',
+  'order_cancelled',
+  'order_pending',
+  'route_assigned',
+]);
+
 /**
  * Stacked toast popups for newly arrived notifications.
  * Clicking a toast opens the notification's own section (deep link) and
@@ -300,8 +357,10 @@ function NotificationToasts({ role }: { role: Role }) {
     const fresh = list.filter((n) => !n.isRead && !known.has(n.notificationId));
     if (fresh.length === 0) return;
     for (const n of fresh) known.add(n.notificationId);
-    setToasts((prev) => [...fresh, ...prev].slice(0, MAX_TOASTS));
-    for (const n of fresh) {
+    const loud = fresh.filter((n) => ATTENTION_TOAST_TYPES.has(String(n.notificationType ?? '')));
+    if (loud.length === 0) return;
+    setToasts((prev) => [...loud, ...prev].slice(0, MAX_TOASTS));
+    for (const n of loud) {
       if (isPersistentToast(n)) continue;
       window.setTimeout(() => {
         setToasts((prev) => prev.filter((t) => t.notificationId !== n.notificationId));
@@ -348,21 +407,35 @@ function NotificationToasts({ role }: { role: Role }) {
   if (toasts.length === 0) return null;
 
   return (
-    <div aria-live="polite" className="pointer-events-none fixed bottom-4 right-4 z-50 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2">
-      {toasts.map((n) => (
+    <div
+      aria-live="polite"
+      onKeyDown={(e) => { if (e.key === 'Escape') setToasts([]); }}
+      className="pointer-events-none fixed bottom-4 right-4 z-50 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2"
+    >
+      {toasts.map((n) => {
+        const StatusIcon = TOAST_STATUS_STYLE[toastStatus(n)].Icon;
+        const statusClass = TOAST_STATUS_STYLE[toastStatus(n)].className;
+        const nextStep = TOAST_NEXT_STEP[String(n.notificationType ?? '')];
+        return (
         <div
           key={n.notificationId}
           className={`pointer-events-auto flex items-start gap-2 rounded-xl border bg-white p-3 shadow-lg dark:bg-slate-900 ${isPersistentToast(n) ? 'border-red-300 dark:border-red-800' : 'border-slate-200 dark:border-slate-700'}`}
         >
+          <StatusIcon className={`mt-0.5 h-5 w-5 shrink-0 ${statusClass}`} aria-hidden />
           <button
             onClick={() => openToast(n)}
             aria-label={`Open notification: ${n.message}`}
             className="min-w-0 flex-1 text-left focus:outline-none focus:ring-2 focus:ring-[#0e7a70]"
           >
-            <span className="block text-sm font-medium text-slate-900 dark:text-slate-100">{n.message}</span>
+            <span className="block text-sm font-medium text-slate-900 line-clamp-2 dark:text-slate-100">{n.message}</span>
             <span className="mt-0.5 block text-xs text-slate-400">
               {String(n.createdAt ?? '').slice(0, 16).replace('T', ' ')} · Tap to view{isPersistentToast(n) ? ' · stays until dismissed' : ''}
             </span>
+            {nextStep && (
+              <span className="mt-0.5 block text-xs font-medium text-slate-600 dark:text-slate-300">
+                {nextStep}
+              </span>
+            )}
           </button>
           <button
             onClick={() => dismissToast(n.notificationId)}
@@ -372,7 +445,8 @@ function NotificationToasts({ role }: { role: Role }) {
             <Icons.X className="h-4 w-4" />
           </button>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -507,20 +581,26 @@ export function NotificationBell() {
             {items.length === 0 && (
               <li className="px-4 py-6 text-center text-sm text-slate-400">No notifications yet.</li>
             )}
-            {items.slice(0, 20).map((n) => (
+            {items.slice(0, 20).map((n) => {
+              const kind = kindOf(String(n.message ?? ''));
+              const KindIcon = KIND_ICON[kind.color];
+              return (
               <li key={n.notificationId}>
                 <button
                   onClick={() => openNotification(n.notificationId)}
-                  className={`block w-full px-4 py-2.5 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-800 ${n.isRead ? 'text-slate-500 dark:text-slate-400' : 'text-slate-900 font-medium dark:text-slate-100'}`}
+                  className={`flex w-full items-start gap-2 px-4 py-2.5 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-800 ${n.isRead ? 'text-slate-500 dark:text-slate-400' : 'text-slate-900 font-medium dark:text-slate-100'}`}
                 >
-                  <span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-current opacity-70" aria-hidden />
+                  <KindIcon className={`mt-0.5 h-4 w-4 shrink-0 ${KIND_TEXT[kind.color]}`} aria-hidden />
+                  <span className="min-w-0 flex-1">
                   {n.message}
                   <span className="mt-0.5 block text-xs font-normal text-slate-400">
                     {String(n.createdAt ?? '').slice(0, 16).replace('T', ' ')}
                   </span>
+                  </span>
                 </button>
               </li>
-            ))}
+              );
+            })}
           </ul>
           <Link href={centerHref()} className="block border-t border-slate-100 px-4 py-2.5 text-center text-xs font-semibold text-blue-700 hover:bg-slate-50 dark:border-slate-800 dark:text-blue-400 dark:hover:bg-slate-800">
             Open notification center
