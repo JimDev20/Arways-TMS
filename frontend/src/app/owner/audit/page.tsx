@@ -5,7 +5,7 @@ import { Card, Empty } from '@/components/saas';
 import { api } from '@/lib/supabase';
 import { useRealtime } from '@/lib/realtime';
 import { Icons } from '@/lib/createLucideIcon';
-import type { NotificationItem, Order, RouteFull } from '@/lib/types';
+import { errorMessage, type NotificationItem, type Order, type RouteFull } from '@/lib/types';
 
 interface LogRow {
   id: string;
@@ -30,11 +30,17 @@ export default function OwnerAuditPage() {
   const [q, setQ] = useState('');
   const [action, setAction] = useState('All');
   const [selected, setSelected] = useState<LogRow | null>(null);
+  const [err, setErr] = useState('');
 
   const load = useCallback(() => {
-    api<Order[]>('/orders').then(setOrders).catch(() => {});
-    api<RouteFull[]>('/routes').then(setRoutes).catch(() => {});
-    api<NotificationItem[]>('/notifications').then(setNotifs).catch(() => {});
+    setErr('');
+    Promise.all([
+      api<Order[]>('/orders').then(setOrders),
+      api<RouteFull[]>('/routes').then(setRoutes),
+      api<NotificationItem[]>('/notifications').then(setNotifs),
+    ]).catch((e: unknown) => {
+      setErr(errorMessage(e, 'Could not load audit data.'));
+    });
   }, []);
   useEffect(() => {
     api<Order[]>('/orders').then(setOrders).catch(() => {});
@@ -137,6 +143,12 @@ export default function OwnerAuditPage() {
         title={`Audit trail (${filtered.length})`}
         action={<button onClick={exportCsv} className="btn-ghost inline-flex items-center gap-2 text-sm font-medium"><Icons.Download className="h-4 w-4" />Export logs</button>}
       >
+        {err && (
+          <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+            {err}{' '}
+            <button onClick={load} className="font-medium underline hover:no-underline">Retry</button>
+          </div>
+        )}
         <div className="mb-4 flex flex-col gap-2 sm:flex-row">
           <input
             value={q}

@@ -10,18 +10,26 @@ export function ProofList() {
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
+  const [retryKey, setRetryKey] = useState(0);
   useEffect(() => {
+    setLoading(true);
+    setErr('');
     api<ProofItem[]>('/proof').then(setItems).catch((e: unknown) => {
       setErr(errorMessage(e, 'Could not load proof records.'));
     }).finally(() => setLoading(false));
-  }, []);
+  }, [retryKey]);
 
   const filtered = items.filter((p) =>
     !q.trim() ||
     `${p.orderReference} ${p.routeNumber} ${p.driverName} ${p.stop.locationAddress}`.toLowerCase().includes(q.trim().toLowerCase()),
   );
 
-  if (err) return <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{err}</div>;
+  if (err) return (
+    <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+      {err}{' '}
+      <button onClick={() => setRetryKey((k) => k + 1)} className="font-medium underline hover:no-underline">Retry</button>
+    </div>
+  );
   if (loading) {
     return <p className="rounded-xl bg-white py-10 text-center text-sm text-slate-500 shadow-sm">Loading proof records…</p>;
   }
