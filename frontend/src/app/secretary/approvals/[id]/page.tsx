@@ -205,9 +205,10 @@ export default function ApprovalDetailPage({ params }: { params: Promise<{ id: s
           <div className="rounded-xl bg-white p-6 shadow-sm">
             <h2 className="mb-3 text-base font-semibold text-slate-900">Secretary Action</h2>
             <div className="flex flex-col gap-3 sm:flex-row">
-              <button onClick={approve} disabled={busy}
+              <button onClick={approve} disabled={busy || unpinned.length > 0}
+                title={unpinned.length > 0 ? `${unpinned.length} pins missing` : undefined}
                 className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#0e7a70] py-2.5 text-sm font-semibold text-white hover:bg-[#0b625a] disabled:opacity-60">
-                <Icons.Check className="h-4 w-4" />{busy ? 'Working…' : 'Approve Order'}
+                <Icons.Check className="h-4 w-4" />{busy ? 'Working…' : unpinned.length > 0 ? `Approve disabled (${unpinned.length} pins missing)` : 'Approve Order'}
               </button>
               <button onClick={() => setEditOpen((v) => !v)}
                 className="flex-1 rounded-lg border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
