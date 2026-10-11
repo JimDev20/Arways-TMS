@@ -497,6 +497,12 @@ export function GlobalSearch({ docs, base, placeholder }: { docs: SearchDocs; ba
         aria-label="Global search"
         className="w-52 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm focus:border-blue-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 lg:w-64"
       />
+      {open && q.trim().length === 1 && (
+        <p role="status" className="absolute left-0 right-0 z-30 mt-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-500 shadow-lg dark:border-slate-700 dark:bg-slate-900">Keep typing. Search starts at 2 characters.</p>
+      )}
+      {open && q.trim().length >= 2 && results.length === 0 && (
+        <p role="status" className="absolute left-0 right-0 z-30 mt-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-500 shadow-lg dark:border-slate-700 dark:bg-slate-900">No matches for “{q.trim()}”. Try an order reference, plate number, or name.</p>
+      )}
       {open && results.length > 0 && (
         <ul className="absolute left-0 right-0 z-30 mt-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
           {results.map((r, i) => (
