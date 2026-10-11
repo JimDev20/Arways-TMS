@@ -107,7 +107,10 @@ export function NotificationsCenter({ role }: { role: Role }) {
         }
       >
         {visible.length === 0 ? (
-          <Empty message={q.trim() ? 'No notifications match. Try a different search.' : filter === 'unread' ? 'All caught up: no unread notifications.' : 'No notifications yet.'} />
+          <Empty
+            message={q.trim() ? 'No notifications match. Try a different search.' : filter === 'unread' ? 'All caught up: no unread notifications.' : 'No notifications yet.'}
+            cta={q.trim() || filter !== 'all' ? <button onClick={() => { setQ(''); setFilter('all'); }} className="btn-ghost text-sm">Clear filter</button> : undefined}
+          />
         ) : (
           <ul className="divide-y divide-slate-100 dark:divide-slate-800">
             {visible.map((n) => {

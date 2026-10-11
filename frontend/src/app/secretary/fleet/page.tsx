@@ -121,7 +121,14 @@ export default function SecretaryFleetPage() {
             ))}
           </tbody>
         </table>
-        {filtered.length === 0 && <p className="py-8 text-center text-sm text-slate-400">No trucks match. Try a different search or filter.</p>}
+        {filtered.length === 0 && (
+          <div className="py-8 text-center">
+            <p className="text-sm text-slate-400">{trucks.length === 0 ? 'No trucks in the fleet yet.' : 'No trucks match. Try a different search or filter.'}</p>
+            {trucks.length > 0 && (
+              <button onClick={() => { setQ(''); setStatus('All'); }} className="btn-ghost mt-3 text-sm">Clear filter</button>
+            )}
+          </div>
+        )}
       </div>
       {selected && (
         <div className="card mt-6 p-6">

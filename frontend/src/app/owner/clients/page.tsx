@@ -112,7 +112,12 @@ export default function OwnerClientsPage() {
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={4} className="px-6 py-8 text-center text-slate-400">{clients.length === 0 ? 'No clients yet. Add the first one below.' : 'No clients match. Try a different search.'}</td></tr>
+                <tr><td colSpan={4} className="px-6 py-8 text-center text-slate-400">
+                  <p>{clients.length === 0 ? 'No clients yet. Add the first one below.' : 'No clients match. Try a different search.'}</p>
+                  {clients.length > 0 && (
+                    <button onClick={() => setQ('')} className="btn-ghost mt-3 text-sm">Clear filter</button>
+                  )}
+                </td></tr>
               )}
             </tbody>
           </table>

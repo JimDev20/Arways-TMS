@@ -222,7 +222,10 @@ export default function UsersPage() {
                 <tr>
                   <td colSpan={6} className="px-6 py-8 text-center text-slate-400">
                     <div className="flex flex-col items-center gap-2">
-                      <p>No users match. Try a different search or filter.</p>
+                      <p>{users.length === 0 ? 'No team members yet. Add the first one below.' : 'No users match. Try a different search or filter.'}</p>
+                      {users.length > 0 && (
+                        <button onClick={() => { setQ(''); setRoleFilter('All'); }} className="btn-ghost mt-1 text-sm">Clear filter</button>
+                      )}
                     </div>
                   </td>
                 </tr>

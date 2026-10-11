@@ -101,6 +101,9 @@ export default function ClientOrders() {
                   <td colSpan={4} className="px-6 py-8 text-center text-slate-400">
                     <div className="flex flex-col items-center gap-2">
                       <p>{orders.length === 0 ? 'No orders found' : 'No orders match. Try a different search or filter.'}</p>
+                      {orders.length > 0 && (
+                        <button onClick={() => { setQ(''); setStatus('All'); }} className="btn-ghost mt-1 text-sm">Clear filter</button>
+                      )}
                     </div>
                   </td>
                 </tr>

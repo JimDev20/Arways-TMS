@@ -164,7 +164,11 @@ export default function OwnerAuditPage() {
           </select>
         </div>
         {filtered.length === 0 ? (
-          <Empty message="No audit entries match your filters." />
+          <Empty
+            message="No audit entries match your filters."
+            description="Try a different search or action."
+            cta={<button onClick={() => { setQ(''); setAction('All'); }} className="btn-ghost text-sm">Clear filter</button>}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">

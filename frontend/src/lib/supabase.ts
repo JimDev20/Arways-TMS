@@ -16,6 +16,21 @@ export function authHeaders(): HeadersInit {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+/** Error thrown by api(): carries the HTTP status so pages can split states (e.g. 403 → access error, not empty). */
+export interface ApiError extends Error {
+  status?: number;
+}
+
+function withStatus(message: string, status?: number): ApiError {
+  const err = new Error(message) as ApiError;
+  if (status !== undefined) err.status = status;
+  return err;
+}
+
+export function apiStatus(err: unknown): number | undefined {
+  return (err as ApiError | null)?.status;
+}
+
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   // Only declare a JSON content-type when a body is actually sent. Fastify
   // rejects bodiless requests that claim to be JSON ("Body cannot be empty
@@ -35,7 +50,7 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   } catch (err: unknown) {
     // Backend down / unreachable: map the raw TypeError to the same
     // server-unreachable text the login page shows.
-    throw new Error(friendlyErrorMessage(err));
+    throw withStatus(friendlyErrorMessage(err));
   }
   if (res.status === 401) {
     if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
@@ -43,11 +58,11 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
       localStorage.removeItem('arways_user');
       window.location.href = new URL('/login', window.location.origin).toString();
     }
-    throw new Error('Session expired. Please log in again.');
+    throw withStatus('Session expired. Please log in again.', 401);
   }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(messageFromBody(body, res.status));
+    throw withStatus(messageFromBody(body, res.status), res.status);
   }
   return res.json() as Promise<T>;
 }

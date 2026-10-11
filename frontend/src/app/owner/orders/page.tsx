@@ -169,7 +169,12 @@ export default function OwnerOrdersPage() {
                 </Fragment>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-400">No orders match. Try a different search or filter.</td></tr>
+                <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-400">
+                  <p>{orders.length === 0 ? 'No orders yet.' : 'No orders match. Try a different search or filter.'}</p>
+                  {orders.length > 0 && (
+                    <button onClick={() => { setQ(''); setStatus('All'); }} className="btn-ghost mt-3 text-sm">Clear filter</button>
+                  )}
+                </td></tr>
               )}
             </tbody>
           </table>

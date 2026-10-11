@@ -254,7 +254,10 @@ export default function FleetPage() {
                 <tr>
                   <td colSpan={7} className="px-6 py-8 text-center text-slate-400">
                     <div className="flex flex-col items-center gap-2">
-                      <p>No trucks match. Try a different search or filter.</p>
+                      <p>{trucks.length === 0 ? 'No trucks in the fleet yet.' : 'No trucks match. Try a different search or filter.'}</p>
+                      {trucks.length > 0 && (
+                        <button onClick={() => { setQ(''); setStatus('All'); setType('All'); setSize('All'); }} className="btn-ghost mt-1 text-sm">Clear filter</button>
+                      )}
                     </div>
                   </td>
                 </tr>
