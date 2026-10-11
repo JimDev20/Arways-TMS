@@ -80,6 +80,7 @@ export default function MonitoringPage() {
           Needs attention
         </button>
         <span className="text-xs text-slate-500">{filtered.length} of {routes.length}</span>
+        <span className="text-xs text-slate-400">Sort: needs attention first</span>
       </div>
       {err && <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{err}</div>}
 
