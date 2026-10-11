@@ -7,6 +7,7 @@ import { useRealtime } from '@/lib/realtime';
 import { Icons } from '@/lib/createLucideIcon';
 import { errorMessage, type Order, type RouteFull } from '@/lib/types';
 import { PriorityBadge } from '@/components/PriorityBadge';
+import { StatusPill } from '@/components/StatusPill';
 
 function todayStr() { return new Date().toISOString().slice(0, 10); }
 
@@ -115,7 +116,7 @@ export function ApprovalCard({ order, route, onDone }: { order: Order; route: Ro
       setMsg({ type: 'success', text: `Order ${order.orderReference} approved. The driver was notified.` });
       onDone();
     } catch (e: unknown) {
-      setMsg({ type: 'error', text: errorMessage(e, 'Could not approve. Try again.') });
+      setMsg({ type: 'error', text: errorMessage(e, 'Could not approve. Make sure all locations are pinned and the truck is still free, then try again.') });
     } finally {
       setIsApproving(false);
     }
@@ -133,7 +134,7 @@ export function ApprovalCard({ order, route, onDone }: { order: Order; route: Ro
       onDone();
       setReason('');
     } catch (e: unknown) {
-      setMsg({ type: 'error', text: errorMessage(e, 'Could not reject. Try again.') });
+      setMsg({ type: 'error', text: errorMessage(e, 'Could not reject. Type a rejection reason and try again.') });
     } finally {
       setIsRejecting(false);
     }
@@ -148,13 +149,7 @@ export function ApprovalCard({ order, route, onDone }: { order: Order; route: Ro
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <span className="text-sm font-bold text-slate-900">#{order.orderReference}</span>
-            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-              order.status === 'Pending' ? 'bg-amber-50 text-amber-700' :
-              order.status === 'Approved' ? 'bg-green-50 text-green-700' :
-              'bg-red-50 text-red-700'
-            }`}>
-              {order.status}
-            </span>
+            <StatusPill status={order.status} />
             <PriorityBadge priority={order.priority} />
           </div>
           <p className="mt-2 text-sm text-slate-500">

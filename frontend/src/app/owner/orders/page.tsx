@@ -5,37 +5,79 @@ import { Shell } from '@/components/Shell';
 import { CancelOrderSection } from '@/components/CancelOrder';
 import { api } from '@/lib/supabase';
 import { Icons } from '@/lib/createLucideIcon';
-import { errorMessage, type Order, type OrderDetail } from '@/lib/types';
+import { errorMessage, type Order, type OrderDetail, type Page } from '@/lib/types';
 import { PriorityBadge } from '@/components/PriorityBadge';
+import { StatusPill } from '@/components/StatusPill';
+import { SearchField } from '@/components/SearchField';
+import { Pager, TableSkeleton } from '@/components/saas';
+import { useDebouncedValue } from '@/lib/useDebouncedValue';
 
 const STATUSES = ['All', 'Pending', 'Approved', 'In Transit', 'Completed', 'Rejected', 'Cancelled'];
+
+const PAGE_SIZE = 20;
 
 export default function OwnerOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('All');
+  const debouncedQ = useDebouncedValue(q);
   const [detail, setDetail] = useState<OrderDetail | { error: string } | null>(null);
   const [detailId, setDetailId] = useState('');
-  const loadOrders = useCallback(() => {
-    api<Order[]>('/orders').then(setOrders).catch(() => {});
-  }, []);
-  useEffect(() => {
-    let live = true;
-    api<Order[]>('/orders')
-      .then((list) => {
-        if (live) setOrders(list);
+  const [page, setPage] = useState(1);
+  const [cursors, setCursors] = useState<(string | null)[]>([null]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [listErr, setListErr] = useState('');
+
+  // Server-side search, filter and cursor pagination (§3.7). Silent reloads
+  // (after an action) keep the current rows on screen.
+  const loadPage = useCallback((p: number, stack: (string | null)[], silent: boolean, qq: string, st: string) => {
+    if (!silent) setLoading(true);
+    setListErr('');
+    const params = new URLSearchParams({ limit: String(PAGE_SIZE) });
+    const cur = stack[p - 1];
+    if (cur) params.set('cursor', cur);
+    if (st !== 'All') params.set('status', st);
+    if (qq.trim()) params.set('q', qq.trim());
+    api<Page<Order>>(`/orders?${params.toString()}`)
+      .then((r) => {
+        setOrders(r.items);
+        setNextCursor(r.nextCursor);
+        setTotal(r.total);
       })
-      .catch(() => {});
-    return () => {
-      live = false;
-    };
+      .catch((e: unknown) => {
+        setListErr(errorMessage(e, 'Could not load orders.'));
+      })
+      .finally(() => setLoading(false));
   }, []);
 
-  const filtered = orders.filter((o) => {
-    if (status !== 'All' && o.status !== status) return false;
-    if (q && !o.orderReference.toLowerCase().includes(q.toLowerCase())) return false;
-    return true;
-  });
+  // Any filter change restarts at page 1 with a fresh cursor stack.
+  useEffect(() => {
+    const stack: (string | null)[] = [null];
+    setPage(1);
+    setCursors(stack);
+    loadPage(1, stack, false, debouncedQ, status);
+  }, [debouncedQ, status, loadPage]);
+
+  const hasFilter = debouncedQ.trim() !== '' || status !== 'All';
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  function nextPage() {
+    if (!nextCursor) return;
+    const stack = [...cursors, nextCursor];
+    setCursors(stack);
+    const p = page + 1;
+    setPage(p);
+    loadPage(p, stack, false, debouncedQ, status);
+  }
+
+  function prevPage() {
+    if (page <= 1) return;
+    const p = page - 1;
+    setPage(p);
+    loadPage(p, cursors, false, debouncedQ, status);
+  }
 
   async function openDetail(id: string) {
     if (detailId === id) { setDetailId(''); setDetail(null); return; }
@@ -57,25 +99,21 @@ export default function OwnerOrdersPage() {
   }
 
   function refreshAfterAction(orderId: string) {
-    loadOrders();
+    loadPage(page, cursors, true, debouncedQ, status);
     reloadDetail(orderId);
   }
 
   return (
     <Shell role="Owner" title="Orders">
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-52">
-          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-            <Icons.Search className="h-4 w-4 text-slate-400" />
-          </div>
-          <input
-            className="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
-            placeholder="Search reference…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            aria-label="Search orders"
-          />
-        </div>
+        <SearchField
+          value={q}
+          onChange={setQ}
+          placeholder="Search by order reference (e.g. JFC-2026-00123)…"
+          label="Search orders"
+          className="flex-1 min-w-52"
+          inputClassName="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-9 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
+        />
         <select
           className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none"
           value={status}
@@ -84,9 +122,19 @@ export default function OwnerOrdersPage() {
         >
           {STATUSES.map((s) => <option key={s}>{s}</option>)}
         </select>
-        <span className="text-xs text-slate-500">{filtered.length} of {orders.length}</span>
+        <span className="text-xs text-slate-500" role="status">{total} orders</span>
       </div>
 
+      {listErr && (
+        <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+          {listErr}{' '}
+          <button onClick={() => loadPage(page, cursors, false, debouncedQ, status)} className="font-medium underline hover:no-underline">Retry</button>
+        </div>
+      )}
+
+      {loading ? (
+        <TableSkeleton rows={5} cols={6} />
+      ) : (
       <div className="rounded-xl bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
@@ -101,18 +149,12 @@ export default function OwnerOrdersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.map((o) => (
+              {orders.map((o) => (
                 <Fragment key={o.orderId}>
                   <tr className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-3 font-medium text-slate-900">{o.orderReference}</td>
                     <td className="px-6 py-3">
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                      o.status === 'Pending' ? 'bg-amber-50 text-amber-700' :
-                      o.status === 'Approved' || o.status === 'In Transit' ? 'bg-blue-50 text-blue-700' :
-                      o.status === 'Completed' ? 'bg-green-50 text-green-700' :
-                      o.status === 'Cancelled' ? 'bg-slate-100 text-slate-600' :
-                      'bg-red-50 text-red-700'
-                    }`}>{o.status}</span>
+                    <StatusPill status={o.status} />
                     </td>
                     <td className="px-6 py-3">
                       <PriorityBadge priority={o.priority} />
@@ -168,13 +210,30 @@ export default function OwnerOrdersPage() {
                   )}
                 </Fragment>
               ))}
-              {filtered.length === 0 && (
-                <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-400">No orders match. Try a different search or filter.</td></tr>
+              {orders.length === 0 && (
+                <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-400">
+                  <p>{total === 0 && !hasFilter ? 'No orders yet.' : 'No orders match. Try a different search or filter.'}</p>
+                  {hasFilter && (
+                    <button onClick={() => { setQ(''); setStatus('All'); }} className="btn-ghost mt-3 text-sm">Clear filter</button>
+                  )}
+                </td></tr>
               )}
             </tbody>
           </table>
         </div>
       </div>
+      )}
+      {!loading && total > PAGE_SIZE && (
+        <Pager
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          noun="orders"
+          onPrev={prevPage}
+          onNext={nextPage}
+          hasNext={nextCursor !== null}
+        />
+      )}
     </Shell>
   );
 }
@@ -196,7 +255,7 @@ function OwnerApprovalActions({ order, onDone }: { order: Order; onDone: () => v
       setMsg({ type: 'success', text: `Order ${order.orderReference} approved. The driver was notified.` });
       onDone();
     } catch (e: unknown) {
-      setMsg({ type: 'error', text: errorMessage(e, 'Could not approve. Try again.') });
+      setMsg({ type: 'error', text: errorMessage(e, 'Could not approve. Make sure all locations are pinned and the truck is still free, then try again.') });
     } finally {
       setBusy(false);
     }
@@ -214,7 +273,7 @@ function OwnerApprovalActions({ order, onDone }: { order: Order; onDone: () => v
       onDone();
       setReason('');
     } catch (e: unknown) {
-      setMsg({ type: 'error', text: errorMessage(e, 'Could not reject. Try again.') });
+      setMsg({ type: 'error', text: errorMessage(e, 'Could not reject. Type a rejection reason and try again.') });
     } finally {
       setBusy(false);
     }
@@ -231,7 +290,7 @@ function OwnerApprovalActions({ order, onDone }: { order: Order; onDone: () => v
       setEditOpen(false);
       onDone();
     } catch (e: unknown) {
-      setMsg({ type: 'error', text: errorMessage(e, 'Could not update. Try again.') });
+      setMsg({ type: 'error', text: errorMessage(e, 'Could not save the changes. Check the date and time, then try again.') });
     } finally {
       setBusy(false);
     }

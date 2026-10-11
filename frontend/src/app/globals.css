@@ -193,3 +193,11 @@ a {
   font-size: 0.8rem;
   font-weight: 600;
 }
+
+/* Search fields use a labelled custom clear button (SearchField), so the
+   browser-native cancel button is hidden to avoid a duplicate control. */
+input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}

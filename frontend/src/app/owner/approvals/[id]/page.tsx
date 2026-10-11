@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Shell } from '@/components/Shell';
 import { CancelOrderSection } from '@/components/CancelOrder';
+import { GatedButton } from '@/components/GatedButton';
 import { coordsOf, navigateHref, type MapPin } from '@/lib/map';
 import { api } from '@/lib/supabase';
 import { Icons } from '@/lib/createLucideIcon';
@@ -48,6 +49,10 @@ export default function OwnerApprovalDetailPage({ params }: { params: Promise<{ 
   }, [id]);
 
   async function approve() {
+    if (missingPins.length > 0) {
+      setMsg({ type: 'error', text: `Cannot approve with missing pins: ${missingNames}. Pin all locations before approving.` });
+      return;
+    }
     setBusy(true);
     setMsg(null);
     try {
@@ -55,7 +60,7 @@ export default function OwnerApprovalDetailPage({ params }: { params: Promise<{ 
       setMsg({ type: 'success', text: 'Order approved. The driver was notified.' });
       load();
     } catch (e: unknown) {
-      setMsg({ type: 'error', text: errorMessage(e, 'Could not approve. Try again.') });
+      setMsg({ type: 'error', text: errorMessage(e, 'Could not approve. Make sure all locations are pinned and the truck is still free, then try again.') });
     } finally {
       setBusy(false);
     }
@@ -71,7 +76,7 @@ export default function OwnerApprovalDetailPage({ params }: { params: Promise<{ 
       setMsg({ type: 'success', text: 'Order rejected. The client was notified.' });
       load();
     } catch (e: unknown) {
-      setMsg({ type: 'error', text: errorMessage(e, 'Could not reject. Try again.') });
+      setMsg({ type: 'error', text: errorMessage(e, 'Could not reject. Type a rejection reason and try again.') });
     } finally {
       setBusy(false);
     }
@@ -89,7 +94,7 @@ export default function OwnerApprovalDetailPage({ params }: { params: Promise<{ 
       setEditOpen(false);
       load();
     } catch (e: unknown) {
-      setMsg({ type: 'error', text: errorMessage(e, 'Could not update. Try again.') });
+      setMsg({ type: 'error', text: errorMessage(e, 'Could not save the changes. Check the date and time, then try again.') });
     } finally {
       setBusy(false);
     }
@@ -171,7 +176,7 @@ export default function OwnerApprovalDetailPage({ params }: { params: Promise<{ 
             </ul>
             {missingPins.length === 0
               ? <p className="mt-2 text-xs text-green-700">All locations pinned.</p>
-              : <p className="mt-2 text-xs text-amber-700" role="alert">Missing pins: {missingNames}. Pin all locations before approving.</p>}
+              : <p id="approve-pins-reason" className="mt-2 text-xs text-amber-700" role="alert">Missing pins: {missingNames}. Pin all locations before approving.</p>}
           </div>
 
           <div className="rounded-xl bg-white p-6 shadow-sm">
@@ -197,11 +202,13 @@ export default function OwnerApprovalDetailPage({ params }: { params: Promise<{ 
           <div className="rounded-xl bg-white p-6 shadow-sm">
             <h2 className="mb-3 text-base font-semibold text-slate-900">Owner Action</h2>
             <div className="flex flex-col gap-3 sm:flex-row">
-              <button onClick={approve} disabled={busy || missingPins.length > 0}
+              <GatedButton onClick={approve} disabled={busy}
+                gated={missingPins.length > 0}
+                reasonId="approve-pins-reason"
                 title={missingPins.length > 0 ? `${missingPins.length} pins missing: ${missingNames}` : undefined}
                 className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#0e7a70] py-2.5 text-sm font-semibold text-white hover:bg-[#0b625a] disabled:opacity-60">
                 <Icons.Check className="h-4 w-4" />{busy ? 'Working…' : missingPins.length > 0 ? `Approve disabled (${missingPins.length} pins missing)` : 'Approve Order'}
-              </button>
+              </GatedButton>
               <button onClick={() => setEditOpen((v) => !v)}
                 className="flex-1 rounded-lg border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
                 Modify Order

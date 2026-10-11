@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { Inject, BadRequestException, ForbiddenException } from '@nestjs/common';
-import { and, desc, eq } from 'drizzle-orm';
+import { SQL, and, count, desc, eq, ilike, inArray, or } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
 import { DB, SUPABASE } from '../db/db.module.js';
@@ -10,6 +10,7 @@ import { JwtAuthGuard } from '../common/jwt-auth.guard.js';
 import { RolesGuard } from '../common/roles.guard.js';
 import { Roles } from '../common/roles.decorator.js';
 import { CurrentUser } from '../common/current-user.decorator.js';
+import { encodeCursor, escapeLike, keysetBefore, parseCursor, parseLimit, type Page } from '../common/pagination.js';
 import type { JwtPayload } from '../common/roles.js';
 import { findUnpinnedStops } from '../common/route-pins.js';
 import { assertCoords, assertNonEmpty, ORDER_PRIORITIES, assertIn, assertPhotoUrl, assertText, TEXT_LIMITS } from '../common/validate.js';
@@ -101,28 +102,63 @@ export class OrdersController {
 
   @Get()
   @Roles('Owner', 'Secretary', 'Client')
-  async list(@Query('status') status?: string, @CurrentUser() user?: JwtPayload) {
+  async list(
+    @Query('status') status?: string,
+    @Query('q') q?: string,
+    @Query('limit') limitRaw?: string,
+    @Query('cursor') cursorRaw?: string,
+    @CurrentUser() user?: JwtPayload,
+  ): Promise<any[] | Page<any>> {
     // P0 #12: scope by clientId (company), not just creator — colleagues at the
     // same company see each other's orders. Links via client_users + email match.
-    let rows = await this.db.select().from(schema.orders).orderBy(desc(schema.orders.createdAt)).limit(200);
+    const companyIds: string[] = [];
     if (user?.role === 'Client') {
       const links: any[] = await this.db
         .select()
         .from(schema.clientUsers)
         .where(eq(schema.clientUsers.userId, user.sub));
-      const companyIds = new Set(links.map((l: any) => l.clientId));
+      const ids = new Set(links.map((l: any) => l.clientId));
       const byEmail: any[] = await this.db
         .select()
         .from(schema.clients)
         .where(eq(schema.clients.email, user.email))
         .limit(5);
-      for (const c of byEmail) companyIds.add((c as any).clientId);
-      rows = rows.filter(
-        (o: any) => o.createdByUserId === user.sub || companyIds.has(o.clientId),
+      for (const c of byEmail) ids.add((c as any).clientId);
+      companyIds.push(...ids);
+    }
+    const conds: (SQL<unknown> | undefined)[] = [];
+    if (status) conds.push(eq(schema.orders.status, status));
+    const needle = (q ?? '').trim();
+    if (needle) conds.push(ilike(schema.orders.orderReference, `%${escapeLike(needle)}%`));
+    if (user?.role === 'Client') {
+      conds.push(
+        companyIds.length > 0
+          ? or(eq(schema.orders.createdByUserId, user.sub), inArray(schema.orders.clientId, companyIds))
+          : eq(schema.orders.createdByUserId, user.sub),
       );
     }
-    if (status) rows = rows.filter((o: any) => o.status === status);
-    return rows;
+    const where = and(...conds);
+    if (limitRaw === undefined) {
+      // Legacy shape (boards, dashboards, reports, header search): full array.
+      return this.db.select().from(schema.orders).where(where).orderBy(desc(schema.orders.createdAt)).limit(200);
+    }
+    // Paginated shape for tables: keyset over (created_at DESC, order_id DESC).
+    const limit = parseLimit(limitRaw);
+    const pageWhere = and(...conds, keysetBefore(schema.orders.createdAt, schema.orders.orderId, parseCursor(cursorRaw)));
+    const rows: any[] = await this.db
+      .select()
+      .from(schema.orders)
+      .where(pageWhere)
+      .orderBy(desc(schema.orders.createdAt), desc(schema.orders.orderId))
+      .limit(limit + 1);
+    const [{ n }] = await this.db.select({ n: count() }).from(schema.orders).where(where);
+    const items = rows.slice(0, limit);
+    const last: any = items[items.length - 1];
+    return {
+      items,
+      nextCursor: rows.length > limit && last && last.createdAt != null ? encodeCursor(last.createdAt, last.orderId) : null,
+      total: Number(n),
+    };
   }
 
   @Get(':id')
@@ -353,7 +389,7 @@ export class OrdersController {
         throw new BadRequestException(`Truck ${truck.plateNumber} is in Maintenance and cannot be approved. Pick an Available truck (reject + recreate).`);
       }
       if (truck.status !== 'Available') {
-        throw new BadRequestException(`Truck ${truck.plateNumber} is currently ${truck.status}. It was booked by another order — reject this one and recreate with a free truck.`);
+        throw new BadRequestException(`Truck ${truck.plateNumber} is currently ${truck.status}. It was booked by another order. Reject this one and recreate with a free truck.`);
       }
       if (!truck.assignedDriverId) {
         throw new BadRequestException(`Truck ${truck.plateNumber} has no assigned driver. Assign a driver first.`);
@@ -391,7 +427,7 @@ export class OrdersController {
       }
     });
     if (r) {
-      await this.notify([r.assignedDriverId], 'route_assigned', `Route ${r.routeNumber} approved — start delivery`, id);
+      await this.notify([r.assignedDriverId], 'route_assigned', `Route ${r.routeNumber} approved. Start delivery.`, id);
     }
     return { ok: true };
   }

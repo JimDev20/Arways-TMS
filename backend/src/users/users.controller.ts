@@ -1,6 +1,6 @@
-import { Controller, Get, Patch, Param, Body, UseGuards, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Patch, Param, Body, Query, UseGuards, BadRequestException } from '@nestjs/common';
 import { Inject } from '@nestjs/common';
-import { and, eq, ne } from 'drizzle-orm';
+import { SQL, and, count, desc, eq, ilike, ne, or } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { DB } from '../db/db.module.js';
@@ -10,7 +10,8 @@ import { RolesGuard } from '../common/roles.guard.js';
 import { Roles } from '../common/roles.decorator.js';
 import { CurrentUser } from '../common/current-user.decorator.js';
 import type { JwtPayload } from '../common/roles.js';
-import { USER_STATUSES, assertIn } from '../common/validate.js';
+import { USER_ROLES, USER_STATUSES, assertIn, assertPassword } from '../common/validate.js';
+import { encodeCursor, escapeLike, keysetBefore, parseCursor, parseLimit, type Page } from '../common/pagination.js';
 
 function withoutSecrets(users: any[]) {
   return users.map((u: any) => {
@@ -26,9 +27,42 @@ export class UsersController {
 
   @Get()
   @Roles('Owner')
-  async list() {
-    const rows = await this.db.select().from(schema.users);
-    return withoutSecrets(rows as any[]);
+  async list(
+    @Query('q') q?: string,
+    @Query('role') role?: string,
+    @Query('limit') limitRaw?: string,
+    @Query('cursor') cursorRaw?: string,
+  ): Promise<any[] | Page<any>> {
+    const conds: (SQL<unknown> | undefined)[] = [];
+    if (role && role !== 'All') conds.push(eq(schema.users.role, assertIn(role, USER_ROLES, 'Role')));
+    const needle = (q ?? '').trim();
+    if (needle) {
+      const like = `%${escapeLike(needle)}%`;
+      conds.push(or(ilike(schema.users.fullName, like), ilike(schema.users.email, like)));
+    }
+    if (limitRaw === undefined) {
+      // Legacy shape: full array.
+      const rows = await this.db.select().from(schema.users);
+      return withoutSecrets(rows as any[]);
+    }
+    // Paginated shape for tables: keyset over (created_at DESC, user_id DESC).
+    const limit = parseLimit(limitRaw);
+    const where = and(...conds);
+    const pageWhere = and(...conds, keysetBefore(schema.users.createdAt, schema.users.userId, parseCursor(cursorRaw)));
+    const rows: any[] = await this.db
+      .select()
+      .from(schema.users)
+      .where(pageWhere)
+      .orderBy(desc(schema.users.createdAt), desc(schema.users.userId))
+      .limit(limit + 1);
+    const [{ n }] = await this.db.select({ n: count() }).from(schema.users).where(where);
+    const items = withoutSecrets(rows.slice(0, limit) as any[]);
+    const last: any = rows[Math.min(rows.length, limit) - 1];
+    return {
+      items,
+      nextCursor: rows.length > limit && last && last.createdAt != null ? encodeCursor(last.createdAt, last.userId) : null,
+      total: Number(n),
+    };
   }
 
   @Patch(':id/status')
@@ -58,9 +92,7 @@ export class UsersController {
   @Patch(':id/password')
   @Roles('Owner')
   async resetPassword(@Param('id') id: string, @Body() body: { password: string }) {
-    if (!body?.password || body.password.length < 10 || body.password.length > 64) {
-      throw new BadRequestException('New password must be 10–64 characters long.');
-    }
+    assertPassword(body?.password, 'New password');
     const rows: any[] = await this.db.select().from(schema.users).where(eq(schema.users.userId, id)).limit(1);
     if (!rows[0]) throw new BadRequestException('User not found. Refresh the user list.');
     const passwordHash = await bcrypt.hash(body.password, 12);

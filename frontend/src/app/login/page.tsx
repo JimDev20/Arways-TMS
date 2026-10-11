@@ -17,6 +17,9 @@ export default function LoginPage() {
   const [remember, setRemember] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+  const showEmailError = (emailTouched || submitAttempted) && emailHint(email);
   const [prefilled, setPrefilled] = useState(false);
   // Caps Lock state for the password field. Event-driven only: typing the
   // password never leaves the browser here, so this reveals nothing about
@@ -36,10 +39,21 @@ export default function LoginPage() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    setSubmitAttempted(true);
     setBusy(true); setError('');
-    if (!email.trim() || !password) {
+    if (!email.trim() && !password) {
       setBusy(false);
       setError('Enter your email and password to log in.');
+      return;
+    }
+    if (!email.trim()) {
+      setBusy(false);
+      setError('Email is empty. Type the email address of your account.');
+      return;
+    }
+    if (!password) {
+      setBusy(false);
+      setError('Password is empty. Type your password.');
       return;
     }
     // Client-side shape check first (HCI error prevention): a malformed
@@ -59,10 +73,10 @@ export default function LoginPage() {
       const body = (await res.json().catch(() => ({}))) as Partial<LoginResponse> & { message?: unknown };
       if (!res.ok) {
         const m = body.message;
-        throw new Error(friendlyErrorMessage(Array.isArray(m) ? m.join(' ') : (m ?? 'Login failed.')));
+        throw new Error(friendlyErrorMessage(Array.isArray(m) ? m.join(' ') : (m ?? 'Login failed. Check your email spelling and password, then try again.')));
       }
       if (!body.access_token || !body.user) {
-        throw new Error('Login failed. Check your connection and try again.');
+        throw new Error('Login failed. The server reply was incomplete. Check your connection and try again.');
       }
       localStorage.setItem('arways_token', body.access_token);
       localStorage.setItem('arways_user', JSON.stringify(body.user));
@@ -97,14 +111,16 @@ export default function LoginPage() {
                   id="email"
                   type="email"
                   autoComplete="username"
-                  aria-describedby={emailHint(email) ? 'email-hint' : undefined}
+                  placeholder="name@example.com"
+                  aria-describedby={showEmailError ? 'email-hint' : undefined}
                   className="block w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm text-slate-900 placeholder-slate-400 focus:border-[#0e7a70] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#0e7a70] transition-all"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  onBlur={() => setEmailTouched(true)}
                   required
                 />
               </div>
-              {emailHint(email) && <FieldHint id="email-hint" tone="error">{emailHint(email)}</FieldHint>}
+              {showEmailError ? <FieldHint id="email-hint" tone="error">{emailHint(email)}</FieldHint> : null}
             </div>
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-slate-700" htmlFor="password">Password</label>
@@ -116,7 +132,8 @@ export default function LoginPage() {
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
-                  aria-describedby={[error ? 'login-error' : null, capsOn && password ? 'pw-caps' : null, password && password.length < 10 ? 'pw-len' : null].filter(Boolean).join(' ') || undefined}
+                  placeholder="Your password"
+                  aria-describedby={[error ? 'login-error' : null, capsOn && password ? 'pw-caps' : null, password && (password.length < 10 || password.length > 64) ? 'pw-len' : null].filter(Boolean).join(' ') || undefined}
                   className="block w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-11 text-sm text-slate-900 placeholder-slate-400 focus:border-[#0e7a70] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#0e7a70] transition-all"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -140,7 +157,7 @@ export default function LoginPage() {
                   {capsLockWarning()}
                 </p>
               )}
-              {password.length > 0 && password.length < 10 && (
+              {password.length > 0 && (password.length < 10 || password.length > 64) && (
                 <FieldHint id="pw-len" tone="hint">{shortPasswordGuidance(password.length)}</FieldHint>
               )}
             </div>

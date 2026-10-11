@@ -7,6 +7,7 @@ import { coordsOf, phPinError, type MapPin } from '@/lib/map';
 import { api } from '@/lib/supabase';
 import { useRealtime } from '@/lib/realtime';
 import { Icons } from '@/lib/createLucideIcon';
+import { StatusPill } from '@/components/StatusPill';
 import { errorMessage, type OrderDetail } from '@/lib/types';
 
 const MapView = dynamic(() => import('@/components/MapView').then((m) => m.MapView), { ssr: false });
@@ -73,7 +74,7 @@ export default function SecretaryTrackDetailPage({ params }: { params: Promise<{
       setStoreMsg({ type: 'success', text: `Assigned ${valid.length} store${valid.length === 1 ? '' : 's'}. The driver was notified.` });
       load();
     } catch (e: unknown) {
-      setStoreMsg({ type: 'error', text: errorMessage(e, 'Could not assign stores. Try again.') });
+      setStoreMsg({ type: 'error', text: errorMessage(e, 'Could not assign stores. Make sure each store has an address and a map pin, then try again.') });
     } finally {
       setSavingStores(false);
     }
@@ -94,6 +95,18 @@ export default function SecretaryTrackDetailPage({ params }: { params: Promise<{
     })
     .filter((p): p is MapPin => p !== null);
 
+  // Two-way map ↔ stop-row selection [U13].
+  const [selectedStopId, setSelectedStopId] = useState('');
+  const pinnedStops = stops.filter((s) => coordsOf(s.locationCoordinates));
+  const selectedIndex = pinnedStops.findIndex((s) => s.stopId === selectedStopId);
+  function selectStop(stopId: string, scroll: boolean) {
+    setSelectedStopId((prev) => (prev === stopId ? '' : stopId));
+    if (scroll && typeof window !== 'undefined') {
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      document.getElementById(`stop-row-${stopId}`)?.scrollIntoView({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' });
+    }
+  }
+
   return (
     <Shell role="Secretary" title="Track Order">
       {err && <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{err}</div>}
@@ -107,7 +120,7 @@ export default function SecretaryTrackDetailPage({ params }: { params: Promise<{
           <div className="rounded-xl bg-white p-6 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-semibold text-slate-900">{detail.order.orderReference}</h2>
-              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">{detail.order.status}</span>
+              <StatusPill status={detail.order.status} />
             </div>
             <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
               <div><dt className="text-slate-500">Pickup</dt><dd className="font-medium">{stops.find((s) => s.stopType === 'Pickup')?.locationAddress ?? '-'}</dd></div>
@@ -129,7 +142,7 @@ export default function SecretaryTrackDetailPage({ params }: { params: Promise<{
               {steps.map((s, i) => (
                 <li key={s.label} className="flex gap-3">
                   <span className="flex flex-col items-center">
-                    <span className={`mt-1.5 h-2.5 w-2.5 rounded-full ${s.done ? 'bg-green-500' : 'bg-slate-300'}`} />
+                    <span aria-hidden className={`mt-1.5 h-2.5 w-2.5 rounded-full ${s.done ? 'bg-green-500' : 'bg-slate-300'}`} />
                     {i < steps.length - 1 && <span className="w-px flex-1 bg-slate-200" />}
                   </span>
                   <span className="pb-3 text-sm">
@@ -144,7 +157,14 @@ export default function SecretaryTrackDetailPage({ params }: { params: Promise<{
           {pins.length > 0 && (
             <div className="rounded-xl bg-white p-6 shadow-sm">
               <h2 className="mb-3 text-base font-semibold text-slate-900">Map View</h2>
-              <MapView pins={pins} />
+              <MapView
+                pins={pins}
+                selectedIndex={selectedIndex >= 0 ? selectedIndex : null}
+                onSelectPin={(i) => {
+                  const s = pinnedStops[i];
+                  if (s) selectStop(s.stopId, true);
+                }}
+              />
             </div>
           )}
 
@@ -193,10 +213,22 @@ export default function SecretaryTrackDetailPage({ params }: { params: Promise<{
             <h2 className="mb-3 text-base font-semibold text-slate-900">Stops & Proof</h2>
             <ul className="divide-y divide-slate-100">
               {stops.map((s) => (
-                <li key={s.stopId} className="py-3">
+                <li key={s.stopId} id={`stop-row-${s.stopId}`} className={`py-3 ${selectedStopId === s.stopId ? 'rounded-lg bg-[#0e7a70]/5 ring-2 ring-[#0e7a70]/30' : ''}`}>
                   <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
                     <span className="font-medium text-slate-900">#{s.stopSequence} {s.stopType} · {s.locationAddress}</span>
-                    <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">{s.status}</span>
+                    <span className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => selectStop(s.stopId, false)}
+                        aria-pressed={selectedStopId === s.stopId}
+                        aria-label={`Highlight ${s.locationAddress} on the map`}
+                        title="Highlight on map"
+                        className="rounded p-1.5 text-slate-400 hover:bg-slate-200 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0e7a70]"
+                      >
+                        <Icons.MapPin className="h-3.5 w-3.5" />
+                      </button>
+                      <StatusPill status={s.status} />
+                    </span>
                   </div>
                   {s.driverNotes && <p className="mt-1 text-sm text-slate-600">Driver note: “{s.driverNotes}”</p>}
                   {s.receiptPhotoUrl && (

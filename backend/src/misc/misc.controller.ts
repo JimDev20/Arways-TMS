@@ -185,7 +185,7 @@ export class MiscController {
         orderReference: order.orderReference,
         orderStatus: order.status,
         routeNumber: route.routeNumber,
-        driverName: driver?.fullName ?? '—',
+        driverName: driver?.fullName ?? '-',
       });
     }
     return out.sort((a: any, b: any) => String(b.stop.deliveredAt ?? '').localeCompare(String(a.stop.deliveredAt ?? '')));

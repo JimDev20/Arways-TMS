@@ -7,6 +7,7 @@ import bcrypt from 'bcrypt';
 import { DB } from '../db/db.module.js';
 import * as schema from '../db/schema.js';
 import type { Role } from '../common/roles.js';
+import { assertPassword } from '../common/validate.js';
 
 // Simple in-memory login rate limit: 10 attempts / 10 min per IP+email.
 const attempts = new Map<string, { count: number; resetAt: number }>();
@@ -81,17 +82,9 @@ export class AuthService {
     if (all.length > 0 && requesterRole !== 'Owner') {
       throw new ForbiddenException('Only Owner can create users');
     }
-    // Feature Placement: passwords 10–64 chars (allow paste), deny-list common ones.
-    // Keeps min-8 logins working; new passwords must meet the stronger rule.
-    const pw = dto.password ?? '';
-    if (pw.length < 10 || pw.length > 64) {
-      throw new ForbiddenException('Password must be 10–64 characters. Use a longer passphrase.');
-    }
-    const lowered = pw.toLowerCase();
-    const denied = ['password', 'password123', '1234567890', 'qwerty12345', 'arways12345', 'letmein1234'];
-    if (denied.some((d) => lowered.includes(d))) {
-      throw new ForbiddenException('That password is too common. Pick a less predictable passphrase.');
-    }
+    // New passwords must meet the strength policy (length + character
+    // classes + deny-list); existing logins keep working untouched.
+    assertPassword(dto.password);
     const existing = await this.db.select().from(schema.users).where(eq(schema.users.email, dto.email)).limit(1);
     if (existing.length > 0) throw new ForbiddenException('Email already in use');
     const phone = dto.phone?.trim() || null;

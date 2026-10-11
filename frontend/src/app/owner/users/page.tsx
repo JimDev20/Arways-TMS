@@ -1,13 +1,19 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Shell } from '@/components/Shell';
 import { api } from '@/lib/supabase';
 import { Icons } from '@/lib/createLucideIcon';
-import { errorMessage, type ClientRow, type UserRow } from '@/lib/types';
-import { emailHint, isEmailLike, passwordHint } from '@/lib/errors';
-import { FieldHint } from '@/components/FieldHint';
+import { errorMessage, type ClientRow, type Page, type UserRow } from '@/lib/types';
+import { Pager, TableSkeleton } from '@/components/saas';
+import { useDebouncedValue } from '@/lib/useDebouncedValue';
+import { emailHint, isEmailLike, passwordMissing } from '@/lib/errors';
+import { FieldHint, FormErrorBanner, PasswordChecklist, type FormErrorItem } from '@/components/FieldHint';
+import { StatusPill } from '@/components/StatusPill';
+import { SearchField } from '@/components/SearchField';
 
 const ROLE_FILTERS = ['All', 'Owner', 'Secretary', 'Client', 'Driver'];
+
+const PAGE_SIZE = 20;
 
 export default function UsersPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -15,41 +21,96 @@ export default function UsersPage() {
   const [form, setForm] = useState({ email: '', password: '', fullName: '', role: 'Driver', phone: '', licenseNo: '', clientId: '' });
   const [err, setErr] = useState('');
   const [okMsg, setOkMsg] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<FormErrorItem[]>([]);
+  const fieldErr = (id: string) => fieldErrors.find((e) => e.fieldId === id)?.message;
+  const [serverErr, setServerErr] = useState('');
+  const [emailTouched, setEmailTouched] = useState(false);
+  const emailLiveErr = emailTouched ? emailHint(form.email) : '';
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [q, setQ] = useState('');
   const [roleFilter, setRoleFilter] = useState('All');
+  const debouncedQ = useDebouncedValue(q);
+  const [page, setPage] = useState(1);
+  const [cursors, setCursors] = useState<(string | null)[]>([null]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [listErr, setListErr] = useState('');
   const [resetId, setResetId] = useState('');
   const [newPw, setNewPw] = useState('');
   const [showNewPw, setShowNewPw] = useState(false);
   const [confirmDeactivateId, setConfirmDeactivateId] = useState('');
 
+  // Server-side search, filter and cursor pagination (§3.7). Returns the
+  // fetch promise so post-action refreshes can await the current page.
+  const loadPage = useCallback((p: number, stack: (string | null)[], silent: boolean, qq: string, rf: string) => {
+    if (!silent) setLoading(true);
+    setListErr('');
+    const params = new URLSearchParams({ limit: String(PAGE_SIZE) });
+    const cur = stack[p - 1];
+    if (cur) params.set('cursor', cur);
+    if (rf !== 'All') params.set('role', rf);
+    if (qq.trim()) params.set('q', qq.trim());
+    return api<Page<UserRow>>(`/users?${params.toString()}`)
+      .then((r) => {
+        setUsers(r.items);
+        setNextCursor(r.nextCursor);
+        setTotal(r.total);
+      })
+      .catch((e: unknown) => {
+        setListErr(errorMessage(e, 'Could not load users.'));
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
   async function reload() {
-    setUsers(await api<UserRow[]>('/users'));
+    await loadPage(page, cursors, true, debouncedQ, roleFilter);
   }
   useEffect(() => {
-    api<UserRow[]>('/users').then(setUsers).catch(() => {});
     api<ClientRow[]>('/clients').then(setClients).catch(() => {});
   }, []);
 
-  const filtered = users.filter((u) => {
-    if (roleFilter !== 'All' && u.role !== roleFilter) return false;
-    if (q) {
-      const hay = `${u.fullName} ${u.email}`.toLowerCase();
-      if (!hay.includes(q.toLowerCase())) return false;
-    }
-    return true;
-  });
+  // Any filter change restarts at page 1 with a fresh cursor stack.
+  useEffect(() => {
+    const stack: (string | null)[] = [null];
+    setPage(1);
+    setCursors(stack);
+    loadPage(1, stack, false, debouncedQ, roleFilter);
+  }, [debouncedQ, roleFilter, loadPage]);
+
+  const hasFilter = debouncedQ.trim() !== '' || roleFilter !== 'All';
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  function nextPage() {
+    if (!nextCursor) return;
+    const stack = [...cursors, nextCursor];
+    setCursors(stack);
+    const p = page + 1;
+    setPage(p);
+    loadPage(p, stack, false, debouncedQ, roleFilter);
+  }
+
+  function prevPage() {
+    if (page <= 1) return;
+    const p = page - 1;
+    setPage(p);
+    loadPage(p, cursors, false, debouncedQ, roleFilter);
+  }
 
   async function create(e: React.FormEvent) {
-    e.preventDefault(); setErr(''); setOkMsg('');
-    if (!form.fullName.trim()) { setErr('Enter the member\u2019s full name.'); return; }
-    if (!form.email.trim()) { setErr('Enter the member\u2019s email address.'); return; }
-    if (!isEmailLike(form.email)) { setErr(`“${form.email.trim()}” does not look like an email. It must look like name@example.com.`); return; }
-    if (!form.phone.trim()) { setErr('Enter the member\u2019s contact number. Dispatch and drivers need it.'); return; }
-    if (!/^[+\d][\d\s\-()]{6,19}$/.test(form.phone.trim())) { setErr(`“${form.phone.trim()}” does not look like a phone number. Use 7–20 characters: digits, spaces, +, -.`); return; }
-    if (form.password.length < 10) { setErr(`Password is ${form.password.length}/10 characters. Type at least 10 characters (max 64).`); return; }
-    if (form.role === 'Client' && !form.clientId) { setErr('Pick the client company this login belongs to, so their orders and tracking link up.'); return; }
+    e.preventDefault(); setErr(''); setOkMsg(''); setServerErr(''); setEmailTouched(true);
+    const problems: FormErrorItem[] = [];
+    if (!form.fullName.trim()) problems.push({ fieldId: 'new-user-name', message: 'Enter the member’s full name.' });
+    if (!form.email.trim()) problems.push({ fieldId: 'new-user-email', message: 'Enter the member’s email address.' });
+    else if (!isEmailLike(form.email)) problems.push({ fieldId: 'new-user-email', message: `“${form.email.trim()}” does not look like an email. It must look like name@example.com.` });
+    if (!form.phone.trim()) problems.push({ fieldId: 'new-user-phone', message: 'Enter the member’s contact number. Dispatch and drivers need it.' });
+    else if (!/^[+\d][\d\s\-()]{6,19}$/.test(form.phone.trim())) problems.push({ fieldId: 'new-user-phone', message: `“${form.phone.trim()}” does not look like a phone number. Use 7–20 characters: digits, spaces, +, -.` });
+    const pwMissing = passwordMissing(form.password);
+    if (pwMissing.length > 0) problems.push({ fieldId: 'new-user-password', message: `Password must include ${pwMissing.join(', ')}.` });
+    if (form.role === 'Client' && !form.clientId) problems.push({ fieldId: 'new-user-client', message: 'Pick the client company this login belongs to, so their orders and tracking link up.' });
+    setFieldErrors(problems);
+    if (problems.length > 0) return;
     setBusy(true);
     try {
       const created = await api<{ userId: string; email: string; fullName: string; role: string }>('/auth/register', {
@@ -70,8 +131,10 @@ export default function UsersPage() {
         : '';
       setOkMsg(`${created.fullName} (${created.email}) was added as ${created.role}.${extra} They can now log in.`);
       setForm({ email: '', password: '', fullName: '', role: 'Driver', phone: '', licenseNo: '', clientId: '' });
+      setFieldErrors([]);
+      setServerErr('');
     } catch (e: unknown) {
-      setErr(errorMessage(e, 'Could not create the user. Try again.'));
+      setServerErr(errorMessage(e, 'Could not create the user. Check that the email is not already registered, then try again.'));
     }
     finally { setBusy(false); }
   }
@@ -93,7 +156,7 @@ export default function UsersPage() {
       await reload();
       setOkMsg(`${u.fullName} is now ${next}. ${next === 'Inactive' ? 'They can no longer log in.' : 'They can log in again.'}`);
     } catch (e: unknown) {
-      setErr(errorMessage(e, 'Could not change the status. Try again.'));
+      setErr(errorMessage(e, 'Could not change the status. Refresh the list and try again.'));
     } finally {
       setBusy(false);
     }
@@ -103,14 +166,15 @@ export default function UsersPage() {
     e.preventDefault(); setErr(''); setOkMsg('');
     const target = users.find((u) => u.userId === resetId);
     if (!target) { setErr('Pick a team member first.'); return; }
-    if (newPw.length < 10) { setErr(`The new password for ${target.email} must be at least 10 characters long.`); return; }
+    const resetMissing = passwordMissing(newPw);
+    if (resetMissing.length > 0) { setErr(`New password must include ${resetMissing.join(', ')}.`); return; }
     setBusy(true);
     try {
       await api(`/users/${target.userId}/password`, { method: 'PATCH', body: JSON.stringify({ password: newPw }) });
       setOkMsg(`Password for ${target.email} was reset. Share the new password with them securely.`);
       setResetId(''); setNewPw('');
     } catch (e: unknown) {
-      setErr(errorMessage(e, 'Could not reset the password. Try again.'));
+      setErr(errorMessage(e, 'Could not reset the password. Use 10 to 64 characters and try again.'));
     }
     finally { setBusy(false); }
   }
@@ -122,31 +186,36 @@ export default function UsersPage() {
           <Icons.Users className="h-5 w-5 text-slate-400" />
           <h2 className="text-lg font-semibold text-slate-900">Team Members</h2>
         </div>
-        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
-          {filtered.length} of {users.length} members
+        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600" role="status">
+          {total} members
         </span>
       </div>
+      {listErr && (
+        <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+          {listErr}{' '}
+          <button onClick={() => loadPage(page, cursors, false, debouncedQ, roleFilter)} className="font-medium underline hover:no-underline">Retry</button>
+        </div>
+      )}
 
       {/* Search + filter */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-52">
-          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-            <Icons.Search className="h-4 w-4 text-slate-400" />
-          </div>
-          <input
-            className="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
-            placeholder="Search name or email…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            aria-label="Search users"
-          />
-        </div>
+        <SearchField
+          value={q}
+          onChange={setQ}
+          placeholder="Search name or email…"
+          label="Search users"
+          className="flex-1 min-w-52"
+          inputClassName="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-9 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
+        />
         <select className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} aria-label="Filter by role">
           {ROLE_FILTERS.map((r) => <option key={r}>{r}</option>)}
         </select>
       </div>
 
       {/* Users Table */}
+      {loading ? (
+        <TableSkeleton rows={5} cols={6} />
+      ) : (
       <div className="rounded-xl bg-white shadow-sm">
         <div className="border-b border-slate-200 px-6 py-4">
           <div className="flex items-center gap-2">
@@ -167,14 +236,14 @@ export default function UsersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.map((u) => (
+              {users.map((u) => (
                 <tr key={u.userId} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-3 font-medium text-slate-900">
                     {u.fullName}
                     {u.licenseNo && <span className="block text-xs font-normal text-slate-400">Lic: {u.licenseNo}</span>}
                   </td>
                   <td className="px-6 py-3 text-slate-600">{u.email}</td>
-                  <td className="px-6 py-3 text-slate-600">{u.phone ?? <span className="text-slate-400">—</span>}</td>
+                  <td className="px-6 py-3 text-slate-600">{u.phone ?? <span className="text-slate-400">-</span>}</td>
                   <td className="px-6 py-3">
                     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
                       u.role === 'Owner' ? 'bg-amber-50 text-amber-700' :
@@ -187,11 +256,7 @@ export default function UsersPage() {
                     </span>
                   </td>
                   <td className="px-6 py-3">
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                      u.status === 'Active' ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-500'
-                    }`}>
-                      {u.status ?? 'Active'}
-                    </span>
+                    <StatusPill status={u.status ?? 'Active'} />
                   </td>
                   <td className="px-6 py-3 text-right whitespace-nowrap">
                     <button
@@ -210,11 +275,14 @@ export default function UsersPage() {
                   </td>
                 </tr>
               ))}
-              {filtered.length === 0 && (
+              {users.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-6 py-8 text-center text-slate-400">
                     <div className="flex flex-col items-center gap-2">
-                      <p>No users match. Try a different search or filter.</p>
+                      <p>{total === 0 && !hasFilter ? 'No team members yet. Add the first one below.' : 'No users match. Try a different search or filter.'}</p>
+                      {hasFilter && (
+                        <button onClick={() => { setQ(''); setRoleFilter('All'); }} className="btn-ghost mt-1 text-sm">Clear filter</button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -223,6 +291,18 @@ export default function UsersPage() {
           </table>
         </div>
       </div>
+      )}
+      {!loading && total > PAGE_SIZE && (
+        <Pager
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          noun="members"
+          onPrev={prevPage}
+          onNext={nextPage}
+          hasNext={nextCursor !== null}
+        />
+      )}
 
       {/* Add User Form */}
       <div className="mt-6 rounded-xl bg-white p-6 shadow-sm">
@@ -230,7 +310,7 @@ export default function UsersPage() {
           <Icons.UserPlus className="h-5 w-5 text-slate-400" />
           <h2 className="text-lg font-semibold text-slate-900">Add Team Member</h2>
         </div>
-        <p className="mb-4 rounded-lg bg-amber-50 px-4 py-2.5 text-sm text-amber-800">Invite links ship with F1. Until then this form types a temporary 10+ character password — share it once, privately, and ask the person to change it. The Owner never reuses it.</p>
+        <p className="mb-4 rounded-lg bg-amber-50 px-4 py-2.5 text-sm text-amber-800">Invite links ship with F1. Until then this form types a temporary 10+ character password. Share it once, privately, and ask the person to change it. The Owner never reuses it.</p>
         {err && (
           <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center gap-2" role="alert">
             <Icons.AlertCircle className="h-5 w-5 shrink-0" />
@@ -243,44 +323,50 @@ export default function UsersPage() {
             {okMsg}
           </div>
         )}
+        <FormErrorBanner errors={fieldErrors} />
         <form onSubmit={create} className="grid gap-4 max-w-lg">
           <div className="grid gap-2">
             <label className="block text-sm font-medium text-slate-700" htmlFor="new-user-name">Full Name *</label>
             <input id="new-user-name"
+              aria-describedby={fieldErr('new-user-name') ? 'new-user-name-error' : undefined}
               className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
               placeholder="John Doe"
               value={form.fullName}
               onChange={(e) => setForm({ ...form, fullName: e.target.value })}
               required
             />
+            {fieldErr('new-user-name') && <FieldHint id="new-user-name-error" tone="error">{fieldErr('new-user-name')}</FieldHint>}
           </div>
           <div className="grid gap-2">
             <label className="block text-sm font-medium text-slate-700" htmlFor="new-user-email">Email *</label>
             <input id="new-user-email"
               type="email"
-              aria-describedby={emailHint(form.email) ? 'new-user-email-hint' : undefined}
+              aria-describedby={(fieldErr('new-user-email') || emailLiveErr) ? 'new-user-email-hint' : undefined}
               className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
               placeholder="john@example.com"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
+              onBlur={() => setEmailTouched(true)}
               required
             />
-            {emailHint(form.email) && <FieldHint id="new-user-email-hint" tone="error">{emailHint(form.email)}</FieldHint>}
+            {(fieldErr('new-user-email') || emailLiveErr) && <FieldHint id="new-user-email-hint" tone="error">{fieldErr('new-user-email') || emailLiveErr}</FieldHint>}
           </div>
           <div className="grid gap-2">
             <label className="block text-sm font-medium text-slate-700" htmlFor="new-user-phone">Contact Number *</label>
             <input id="new-user-phone"
               type="tel"
               autoComplete="tel"
+              aria-describedby={fieldErr('new-user-phone') ? 'new-user-phone-error' : undefined}
               className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
               placeholder="0917 123 4567"
               value={form.phone}
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
               required
             />
+            {fieldErr('new-user-phone') && <FieldHint id="new-user-phone-error" tone="error">{fieldErr('new-user-phone')}</FieldHint>}
           </div>
           <div className="grid gap-2">
-            <label className="block text-sm font-medium text-slate-700" htmlFor="new-user-password">Password (min 10 characters) *</label>
+            <label className="block text-sm font-medium text-slate-700" htmlFor="new-user-password">Password *</label>
             <div className="relative">
               <input
                 id="new-user-password"
@@ -292,7 +378,7 @@ export default function UsersPage() {
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
                 required
-                minLength={8}
+                minLength={10}
               />
               <button
                 type="button"
@@ -304,9 +390,9 @@ export default function UsersPage() {
                 {showPassword ? <Icons.EyeOff className="h-4 w-4" /> : <Icons.Eye className="h-4 w-4" />}
               </button>
             </div>
-            <FieldHint id="new-user-password-hint" tone={form.password && form.password.length < 8 ? 'error' : 'hint'}>
-              {form.password ? (passwordHint(form.password) || 'Meets the 10-character rule.') : 'Use at least 10 characters. Share it once, privately, so they can log in.'}
-            </FieldHint>
+            {fieldErr('new-user-password') && <FieldHint id="new-user-password-submit-error" tone="error">{fieldErr('new-user-password')}</FieldHint>}
+            <PasswordChecklist password={form.password} id="new-user-password-hint" />
+            <p className="text-xs text-slate-400">Share it once, privately, so they can log in.</p>
           </div>
           <div className="grid gap-2">
             <label className="block text-sm font-medium text-slate-700" htmlFor="new-user-role">Role</label>
@@ -336,6 +422,7 @@ export default function UsersPage() {
             <div className="grid gap-2">
               <label className="block text-sm font-medium text-slate-700" htmlFor="new-user-client">Client Company *</label>
               <select id="new-user-client"
+                aria-describedby={fieldErr('new-user-client') ? 'new-user-client-error' : undefined}
                 className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
                 value={form.clientId}
                 onChange={(e) => setForm({ ...form, clientId: e.target.value })}
@@ -346,11 +433,18 @@ export default function UsersPage() {
                   <option key={c.clientId} value={c.clientId}>{c.companyName} ({c.email})</option>
                 ))}
               </select>
+              {fieldErr('new-user-client') && <FieldHint id="new-user-client-error" tone="error">{fieldErr('new-user-client')}</FieldHint>}
               <p className="text-xs text-slate-400">
                 {clients.length === 0
                   ? 'No client companies yet. Add the company on the Clients page first.'
                   : 'Links this login so their orders and tracking connect automatically.'}
               </p>
+            </div>
+          )}
+          {serverErr && (
+            <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center gap-2" role="alert">
+              <Icons.AlertCircle className="h-5 w-5 shrink-0" />
+              {serverErr}
             </div>
           )}
           <button
@@ -374,7 +468,7 @@ export default function UsersPage() {
           </div>
           <form onSubmit={resetPassword} className="grid gap-4 max-w-lg">
             <div className="grid gap-2">
-              <label className="block text-sm font-medium text-slate-700" htmlFor="reset-pw">New password (min 10 characters) *</label>
+              <label className="block text-sm font-medium text-slate-700" htmlFor="reset-pw">New password *</label>
               <div className="relative">
                 <input id="reset-pw"
                   type={showNewPw ? 'text' : 'password'}
@@ -384,13 +478,12 @@ export default function UsersPage() {
                   placeholder="••••••••"
                   value={newPw}
                   onChange={(e) => setNewPw(e.target.value)}
-                  required minLength={8}
+                  required minLength={10}
                 />
-                <FieldHint id="reset-pw-hint" tone={newPw && newPw.length < 10 ? 'error' : 'hint'}>
-                  {newPw ? (passwordHint(newPw) || 'Meets the 10-character rule.') : 'Use at least 10 characters. The member logs in with this password next time.'}
-                </FieldHint>
+                <PasswordChecklist password={newPw} id="reset-pw-hint" />
                 <button type="button" onClick={() => setShowNewPw((v) => !v)}
                   aria-label={showNewPw ? 'Hide password' : 'Show password'}
+                  aria-pressed={showNewPw}
                   className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-700 focus:outline-none">
                   {showNewPw ? <Icons.EyeOff className="h-4 w-4" /> : <Icons.Eye className="h-4 w-4" />}
                 </button>

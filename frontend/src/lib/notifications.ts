@@ -1,5 +1,23 @@
 import type { NotificationItem, Role } from '@/lib/types';
 
+/** Kind colour + label for a notification message (shared by center, bell and toasts). */
+export type NotificationKindColor = 'red' | 'yellow' | 'green' | 'blue' | 'gray';
+
+const KIND: { match: RegExp; color: NotificationKindColor; label: string }[] = [
+  { match: /order/i, color: 'red', label: 'New order' },
+  { match: /arriv/i, color: 'yellow', label: 'Delivery update' },
+  { match: /deliver|complet/i, color: 'green', label: 'Delivered' },
+  { match: /delay|behind|fail/i, color: 'red', label: 'Alert' },
+  { match: /approv/i, color: 'blue', label: 'Approval' },
+];
+
+const FALLBACK_KIND: { color: NotificationKindColor; label: string } = { color: 'gray', label: 'Notice' };
+
+export function kindOf(message: string): { color: NotificationKindColor; label: string } {
+  for (const k of KIND) if (k.match.test(message)) return k;
+  return FALLBACK_KIND;
+}
+
 /** Notifications-center URL per portal. */
 export function centerHrefFor(role: Role): string {
   return role === 'Owner'

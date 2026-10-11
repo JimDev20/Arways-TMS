@@ -2,26 +2,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Shell } from '@/components/Shell';
-import { Card, Empty, StatusDot, type DotColor } from '@/components/saas';
+import { Card, Empty, ListSkeleton, StatusDot } from '@/components/saas';
+import { SearchField } from '@/components/SearchField';
 import { api } from '@/lib/supabase';
 import { useRealtime } from '@/lib/realtime';
-import { notificationHref } from '@/lib/notifications';
+import { kindOf, notificationHref } from '@/lib/notifications';
 import type { NotificationItem, Role } from '@/lib/types';
-
-const KIND: { match: RegExp; color: DotColor; label: string }[] = [
-  { match: /order/i, color: 'red', label: 'New order' },
-  { match: /arriv/i, color: 'yellow', label: 'Delivery update' },
-  { match: /deliver|complet/i, color: 'green', label: 'Delivered' },
-  { match: /delay|behind|fail/i, color: 'red', label: 'Alert' },
-  { match: /approv/i, color: 'blue', label: 'Approval' },
-];
-
-const FALLBACK_KIND: { color: DotColor; label: string } = { color: 'gray', label: 'Notice' };
-
-function kindOf(message: string): { color: DotColor; label: string } {
-  for (const k of KIND) if (k.match.test(message)) return k;
-  return FALLBACK_KIND;
-}
 
 /** Wireframe 2.7: full-page notification center (all roles). */
 /** Every row is clickable and opens the notification's own section. */
@@ -30,6 +16,7 @@ export function NotificationsCenter({ role }: { role: Role }) {
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [q, setQ] = useState('');
+  const [loading, setLoading] = useState(true);
   const load = useCallback(() => {
     api<NotificationItem[]>('/notifications').then(setItems).catch(() => {});
   }, []);
@@ -39,7 +26,10 @@ export function NotificationsCenter({ role }: { role: Role }) {
       .then((list) => {
         if (live) setItems(list);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        if (live) setLoading(false);
+      });
     return () => {
       live = false;
     };
@@ -82,12 +72,13 @@ export function NotificationsCenter({ role }: { role: Role }) {
         title={`Notifications${unread.length > 0 ? ` (${unread.length} unread)` : ''}`}
         action={
           <div className="flex flex-wrap gap-2">
-            <input
+            <SearchField
               value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search messages…"
-              aria-label="Search notifications"
-              className="w-44 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900"
+              onChange={setQ}
+              placeholder="Search notifications by message or order ref…"
+              label="Search notifications"
+              withIcon={false}
+              inputClassName="w-44 rounded-lg border border-slate-200 bg-white pl-3 pr-8 py-1.5 text-sm focus:border-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900"
             />
             <select
               value={filter}
@@ -106,8 +97,13 @@ export function NotificationsCenter({ role }: { role: Role }) {
           </div>
         }
       >
-        {visible.length === 0 ? (
-          <Empty message={q.trim() ? 'No notifications match. Try a different search.' : filter === 'unread' ? 'All caught up: no unread notifications.' : 'No notifications yet.'} />
+          {loading ? (
+            <ListSkeleton rows={4} />
+          ) : visible.length === 0 ? (
+            <Empty
+              message={q.trim() ? 'No notifications match. Try a different search.' : filter === 'unread' ? 'All caught up: no unread notifications.' : 'No notifications yet.'}
+              cta={q.trim() || filter !== 'all' ? <button onClick={() => { setQ(''); setFilter('all'); }} className="btn-ghost text-sm">Clear filter</button> : undefined}
+            />
         ) : (
           <ul className="divide-y divide-slate-100 dark:divide-slate-800">
             {visible.map((n) => {

@@ -1,11 +1,12 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Shell } from '@/components/Shell';
-import { Card, Empty } from '@/components/saas';
+import { Card, Empty, TableSkeleton } from '@/components/saas';
+import { SearchField } from '@/components/SearchField';
 import { api } from '@/lib/supabase';
 import { useRealtime } from '@/lib/realtime';
 import { Icons } from '@/lib/createLucideIcon';
-import type { NotificationItem, Order, RouteFull } from '@/lib/types';
+import { errorMessage, type NotificationItem, type Order, type RouteFull } from '@/lib/types';
 
 interface LogRow {
   id: string;
@@ -30,16 +31,25 @@ export default function OwnerAuditPage() {
   const [q, setQ] = useState('');
   const [action, setAction] = useState('All');
   const [selected, setSelected] = useState<LogRow | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState('');
 
   const load = useCallback(() => {
-    api<Order[]>('/orders').then(setOrders).catch(() => {});
-    api<RouteFull[]>('/routes').then(setRoutes).catch(() => {});
-    api<NotificationItem[]>('/notifications').then(setNotifs).catch(() => {});
+    setErr('');
+    Promise.all([
+      api<Order[]>('/orders').then(setOrders),
+      api<RouteFull[]>('/routes').then(setRoutes),
+      api<NotificationItem[]>('/notifications').then(setNotifs),
+    ]).catch((e: unknown) => {
+      setErr(errorMessage(e, 'Could not load audit data.'));
+    });
   }, []);
   useEffect(() => {
-    api<Order[]>('/orders').then(setOrders).catch(() => {});
-    api<RouteFull[]>('/routes').then(setRoutes).catch(() => {});
-    api<NotificationItem[]>('/notifications').then(setNotifs).catch(() => {});
+    Promise.all([
+      api<Order[]>('/orders').then(setOrders).catch(() => {}),
+      api<RouteFull[]>('/routes').then(setRoutes).catch(() => {}),
+      api<NotificationItem[]>('/notifications').then(setNotifs).catch(() => {}),
+    ]).finally(() => setLoading(false));
   }, []);
   useRealtime('orders', load);
   useRealtime('stops', load);
@@ -137,13 +147,21 @@ export default function OwnerAuditPage() {
         title={`Audit trail (${filtered.length})`}
         action={<button onClick={exportCsv} className="btn-ghost inline-flex items-center gap-2 text-sm font-medium"><Icons.Download className="h-4 w-4" />Export logs</button>}
       >
+        {err && (
+          <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+            {err}{' '}
+            <button onClick={load} className="font-medium underline hover:no-underline">Retry</button>
+          </div>
+        )}
         <div className="mb-4 flex flex-col gap-2 sm:flex-row">
-          <input
+          <SearchField
             value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search logs…"
-            aria-label="Search audit logs"
-            className="field sm:max-w-xs"
+            onChange={setQ}
+            placeholder="Search logs by actor, action, or order ref…"
+            label="Search audit logs"
+            withIcon={false}
+            className="sm:max-w-xs"
+            inputClassName="field w-full pr-9"
           />
           <select value={action} onChange={(e) => setAction(e.target.value)} aria-label="Filter by action" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900">
             {['All', 'CREATE', 'APPROVE', 'REJECT', 'CANCEL', 'UPDATE', 'NOTIFY'].map((a) => (
@@ -151,8 +169,14 @@ export default function OwnerAuditPage() {
             ))}
           </select>
         </div>
-        {filtered.length === 0 ? (
-          <Empty message="No audit entries match your filters." />
+        {loading ? (
+          <TableSkeleton rows={5} cols={4} />
+        ) : filtered.length === 0 ? (
+          <Empty
+            message="No audit entries match your filters."
+            description="Try a different search or action."
+            cta={<button onClick={() => { setQ(''); setAction('All'); }} className="btn-ghost text-sm">Clear filter</button>}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">

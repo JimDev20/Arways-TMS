@@ -17,7 +17,7 @@
  * users recognize, diagnose, and recover). Every message below follows it:
  * WHAT happened (plain words, no codes or jargon) + WHY (which field,
  * which rule, in user terms) + HOW to fix (exactly one concrete action).
- * Polite, no blame ("re-type" never "you failed"). The caller must preserve
+ * Plain words, no blame ("re-type" never "you failed"). The caller must preserve
  * the user's input on failure (never clear the form).
  * Security boundary: server-side credential failures stay DELIBERATELY
  * generic (one message for unknown email, wrong password, inactive
@@ -99,12 +99,12 @@ const EXACT: Record<string, string> = {
     // Deliberately generic per the contract above: never split into
     // "email not found" vs "wrong password" (account enumeration). Instead
     // this names every check the user can run themselves.
-    'Those details did not match an account together. Check three things: the email spelling (name@example.com, no extra spaces), Caps Lock (passwords are case-sensitive), and that you are using the newest password. Then try again.',
-  'Missing token': 'You are not logged in. Please log in first.',
+    'Those details did not match an account together. Check four things: the email spelling (name@example.com, no extra spaces), Caps Lock (passwords are case-sensitive), that you are using the newest password, and the password length (at least 10 characters for newer passwords, 8 for older ones). Then try again.',
+  'Missing token': 'You are not logged in. Log in first.',
   'Invalid or expired token':
-    'Your login expired. Please log out and log in again.',
-  'Session expired. Please log in again.':
-    'Your session expired. Please log in again.',
+    'Your login expired. Log out and log in again.',
+  'Session expired. Log in again.':
+    'Your session expired. Log in again.',
   'Too many attempts. Try again later.':
     'Too many login attempts (10 in 10 minutes). Wait 10 minutes, then try again.',
   'Email already in use':
@@ -112,7 +112,7 @@ const EXACT: Record<string, string> = {
   'Only Owner can create users':
     'Only an Owner account can create users. Ask an Owner to create this account.',
   'Insufficient role permission':
-    'Your account role is not allowed to do this. Ask an Owner to change your role or do it for you.',
+    'You do not have access to this page. Contact dispatch if you need it.',
   'Supabase env not configured':
     'The server is missing its database setup. Contact the administrator.',
   'Missing required fields':
@@ -138,10 +138,34 @@ const EXACT: Record<string, string> = {
   'Failure reason required':
     'A reason is required when marking a stop Failed. Type the reason first.',
   'Rejection reason required':
-    'A rejection reason is required. Type why the order is rejected first.',
-  'New password must be 10–64 characters long.':
-    'The new password must be 10–64 characters long. Type a longer passphrase and try again.',
+    'A rejection reason is required. Type why this order is rejected first.',
 };
+
+/**
+ * Password strength mirror of the backend policy (backend
+ * common/validate.ts passwordMissing): identical labels and regexes, so the
+ * live checklist and submit errors name exactly what the server enforces.
+ * Login never uses these (pre-policy passwords keep working there).
+ */
+export interface PasswordRule {
+  key: 'length' | 'lower' | 'upper' | 'digit' | 'special';
+  label: string;
+  met: boolean;
+}
+
+export function passwordRules(pw: string): PasswordRule[] {
+  return [
+    { key: 'length', label: '10–64 characters', met: pw.length >= 10 && pw.length <= 64 },
+    { key: 'lower', label: 'one lowercase letter (a–z)', met: /[a-z]/.test(pw) },
+    { key: 'upper', label: 'one uppercase letter (A–Z)', met: /[A-Z]/.test(pw) },
+    { key: 'digit', label: 'one number (0–9)', met: /\d/.test(pw) },
+    { key: 'special', label: 'one special character (e.g. !@#$)', met: /[^A-Za-z0-9]/.test(pw) },
+  ];
+}
+
+export function passwordMissing(pw: string): string[] {
+  return passwordRules(pw).filter((r) => !r.met).map((r) => r.label);
+}
 
 /**
  * Live field checks for real-time validation as the user types (HCI: show
@@ -160,8 +184,11 @@ export function isEmailLike(value: string): boolean {
  */
 export function emailHint(value: string): string {
   if (!value) return '';
-  if (!value.includes('@')) return 'Email must include @, like name@example.com.';
-  if (!isEmailLike(value)) return 'Email looks incomplete. It must look like name@example.com.';
+  if (value !== value.trim()) return 'Email has extra spaces. Remove the spaces at the start or end.';
+  const t = value.trim();
+  if (t.startsWith('@')) return 'Email is missing the name before @. Type it like name@example.com.';
+  if (!t.includes('@')) return 'Email must include @, like name@example.com.';
+  if (!isEmailLike(t)) return 'Email looks incomplete. It must look like name@example.com.';
   return '';
 }
 
@@ -185,12 +212,16 @@ export function loginEmailShapeError(): string {
 }
 
 /**
- * Login password shorter than current policy. Guidance only, NEVER a
- * submit blocker: accounts created before the 10-character rule may have
- * shorter passwords, and blocking them would lock out real users. Names
- * the rule and the fix (slow, careful re-type).
+ * Login password outside current policy (too short or too long). Guidance
+ * only, NEVER a submit blocker: accounts created before the 10-character
+ * rule may have shorter passwords, and blocking them would lock out real
+ * users. Names the rule and the fix (slow, careful re-type, or trimming).
  */
 export function shortPasswordGuidance(length: number): string {
+  if (length > 64) {
+    const over = length - 64;
+    return `Passwords stop at 64 characters (this entry has ${length}). Remove ${over} character${over === 1 ? '' : 's'}.`;
+  }
   return `Passwords are usually 10 or more characters (this entry has ${length}). Re-type it slowly to catch typos; passwords are case-sensitive.`;
 }
 
@@ -209,36 +240,36 @@ export function friendlyErrorMessage(err: unknown): string {
   // throws TypeError "Failed to fetch" with no status. Name the exact fix
   // instead of showing the raw browser text.
   if (/failed to fetch|networkerror|load failed|network request failed/i.test(raw)) {
-    return 'Cannot reach the server. Start the backend (`npm run start:dev` in `backend/`) and make sure it listens on http://localhost:4000/api, then try again.';
+    return 'Cannot reach the server. Check your internet connection and try again.';
   }
   if (EXACT[raw]) return EXACT[raw];
 
   // Server-side schema drift (missing migration column): tell the user it is
   // a server setup issue, not their input.
   if (raw.startsWith('Database is missing column')) {
-    return 'The server database is missing an update, so this action cannot complete right now. Contact the administrator (missing database migration). Your data is safe. Try again after the server is updated.';
+    return 'We cannot process your request right now because of a problem on our side. We are working on it. Try again in a few minutes.';
   }
 
   // HTTP-status-only fallback: name what it means.
   const statusMatch = raw.match(/^Request failed \((\d+)\)\.?$/);
   if (statusMatch) {
     const code = statusMatch[1];
-    if (code === '400') return 'The server rejected the data: a field is missing or invalid. Check each highlighted field and try again.';
-    if (code === '401') return 'You are not logged in (or the session expired). Please log in again.';
-    if (code === '403') return 'Your account role is not allowed to do this. Ask an Owner for help.';
+    if (code === '400') return 'The server rejected the data: a field is missing or wrong. Check each highlighted field and try again.';
+    if (code === '401') return 'You are not logged in (or the session expired). Log in again.';
+    if (code === '403') return 'You do not have access to this page. Contact dispatch if you need it.';
     if (code === '404') return 'That record was not found. It may have been deleted. Refresh the page.';
     return `Request failed (${code}). If this keeps happening, contact the administrator.`;
   }
   if (/^Request failed \(\d+\)/.test(raw)) {
     return `${raw} If this keeps happening, contact the administrator.`;
   }
-  return raw || 'Something went wrong. Please try again.';
+  return raw || 'Something went wrong on our side. Try again in a few minutes.';
 }
 
 function extractMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
   if (typeof err === 'string') return err;
-  return 'Something went wrong. Please try again.';
+  return 'Something went wrong on our side. Try again in a few minutes.';
 }
 
 /**

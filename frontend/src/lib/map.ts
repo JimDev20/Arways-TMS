@@ -57,7 +57,7 @@ export function looksSwappedPH(lat: number, lon: number): boolean {
 export function phPinError(label: string, lat: number, lon: number): string | null {
   if (inPH(lat, lon)) return null;
   if (looksSwappedPH(lat, lon)) {
-    return `${label} is outside the Philippines (got lat ${lat}, lng ${lon}). It looks like latitude and longitude are swapped — try lat ${lon}, lng ${lat} instead. For Maanahao, Masbate use lat 12.05509, lng 123.90058.`;
+    return `${label} is outside the Philippines (got lat ${lat}, lng ${lon}). It looks like latitude and longitude are swapped. Try lat ${lon}, lng ${lat} instead. For Maanahao, Masbate use lat 12.05509, lng 123.90058.`;
   }
   return `${label} is outside the Philippines (lat 4–21, lng 116–127). Move the pin inside the Philippines.`;
 }

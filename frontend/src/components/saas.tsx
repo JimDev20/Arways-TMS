@@ -1,8 +1,10 @@
 'use client';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import type { Order, RouteFull, StopRow, TruckWithDriver, UserRow } from '@/lib/types';
 import { Icons } from '@/lib/createLucideIcon';
+import { SearchField } from '@/components/SearchField';
 
 /* ------------------------------------------------------------------ */
 /* Small layout helpers (wireframe: consistent SaaS cards)             */
@@ -22,11 +24,110 @@ export function Card({ title, action, children, className = '' }: { title?: stri
   );
 }
 
-export function Empty({ message, cta }: { message: string; cta?: React.ReactNode }) {
+/**
+ * Bottom pager for server-paginated tables (ARWAYS-UI-IMPROVEMENTS §3.7).
+ * Previous walks the cursor stack already fetched; Next follows nextCursor.
+ */
+export function Pager({
+  page,
+  totalPages,
+  total,
+  noun,
+  onPrev,
+  onNext,
+  hasNext,
+}: {
+  page: number;
+  totalPages: number | null;
+  total: number;
+  noun: string;
+  onPrev: () => void;
+  onNext: () => void;
+  hasNext: boolean;
+}) {
+  return (
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+      <p className="text-xs text-slate-500" role="status">
+        Page {page}{totalPages ? ` of ${totalPages}` : ''} · {total} {noun}
+      </p>
+      <div className="flex gap-2">
+        <button
+          onClick={onPrev}
+          disabled={page <= 1}
+          className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Previous
+        </button>
+        <button
+          onClick={onNext}
+          disabled={!hasNext}
+          className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Loading skeletons (ARWAYS-UI-IMPROVEMENTS §3.3, GitLab [U11]).
+ * - TableSkeleton: same row height and column layout as the loaded table.
+ * - ListSkeleton: matching blocks for card lists.
+ * First load only: when lists refetch (realtime, filters), old rows stay on
+ * screen. Never combined with a spinner on the same region. No live region
+ * needed. Shapes are basic grayscale rounded bars with a horizontal pulse.
+ */
+export function TableSkeleton({ rows = 5, cols = 4 }: { rows?: number; cols?: number }) {
+  return (
+    <div className="animate-pulse overflow-hidden rounded-xl bg-white shadow-sm" aria-hidden>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="flex gap-4 border-b border-slate-100 px-6 py-3 last:border-0">
+          {Array.from({ length: cols }).map((_, j) => (
+            <span key={j} className="h-4 flex-1 rounded bg-slate-100" style={j === 0 ? { maxWidth: '30%' } : undefined} />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function ListSkeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <div className="grid gap-4" aria-hidden>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="animate-pulse rounded-xl bg-white p-6 shadow-sm">
+          <div className="h-4 w-1/3 rounded bg-slate-100" />
+          <div className="mt-3 h-3 w-2/3 rounded bg-slate-100" />
+          <div className="mt-2 h-3 w-1/2 rounded bg-slate-100" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function Empty({ message, description, cta }: { message: string; description?: string; cta?: React.ReactNode }) {
   return (
     <div className="flex flex-col items-center justify-center py-8 text-center">
-      <p className="text-sm text-slate-400 dark:text-slate-400">{message}</p>
+      <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{message}</p>
+      {description && <p className="mt-1 max-w-md text-xs text-slate-400">{description}</p>}
       {cta && <div className="mt-3">{cta}</div>}
+    </div>
+  );
+}
+
+/**
+ * Access-denied error state (ARWAYS-UI-IMPROVEMENTS §3.2): never render 403
+ * through Empty, so it is not mistaken for "you have no data".
+ */
+export function NoAccess({ backHref = '/', backLabel = 'Back to home' }: { backHref?: string; backLabel?: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center rounded-xl border border-red-200 bg-red-50 px-6 py-10 text-center" role="alert">
+      <p className="text-sm font-semibold text-red-700">You do not have access to this page.</p>
+      <p className="mt-1 max-w-md text-xs text-red-600">Contact dispatch if you need it.</p>
+      <Link href={backHref} className="mt-3 rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-100">
+        {backLabel}
+      </Link>
     </div>
   );
 }
@@ -249,7 +350,7 @@ function kanbanStatus(o: Order, stops: StopRow[]): string {
   return 'In Transit';
 }
 
-export function KanbanBoard({ orders, routes, onMove, query = '', showCancelled = false }: { orders: Order[]; routes: RouteFull[]; onMove?: (order: Order) => void; query?: string; showCancelled?: boolean }) {
+export function KanbanBoard({ orders, routes, onMove, query = '', showCancelled = false, onClearFilters }: { orders: Order[]; routes: RouteFull[]; onMove?: (order: Order) => void; query?: string; showCancelled?: boolean; onClearFilters?: () => void }) {
   const stopsByOrder = useMemo(() => {
     const m = new Map<string, StopRow[]>();
     for (const r of routes) m.set(r.route.orderId, r.stops ?? []);
@@ -263,6 +364,7 @@ export function KanbanBoard({ orders, routes, onMove, query = '', showCancelled 
     : active;
   const cols = showCancelled ? [...KANBAN_COLS, 'Cancelled' as const] : KANBAN_COLS;
   return (
+    <>
     <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-5">
       {cols.map((col) => {
         const cards = scoped.filter((o) => kanbanStatus(o, stopsByOrder.get(o.orderId) ?? []) === col);
@@ -290,6 +392,14 @@ export function KanbanBoard({ orders, routes, onMove, query = '', showCancelled 
         );
       })}
     </div>
+    {needle && scoped.length === 0 && (
+      <Empty
+        message={`No cards match "${query.trim()}".`}
+        description="Try a different search."
+        cta={onClearFilters ? <button onClick={onClearFilters} className="btn-ghost text-sm">Clear filter</button> : undefined}
+      />
+    )}
+    </>
   );
 }
 
@@ -386,6 +496,10 @@ export function CalendarView({ orders, onPick }: { orders: Order[]; onPick: (dat
 
 export function HelpCenter({ role }: { role: string }) {
   const [open, setOpen] = useState<number | null>(0);
+  const pathname = usePathname();
+  const reportHref =
+    `mailto:support@arways.com?subject=${encodeURIComponent(`Problem report (${role}, ${pathname})`)}` +
+    `&body=${encodeURIComponent(`Role: ${role}\nScreen: ${pathname}\n\nWhat happened:\n\nWhat I expected:\n`)}`;
   const faqs: { q: string; a: string }[] =
     role === 'Driver'
       ? [
@@ -442,7 +556,11 @@ export function HelpCenter({ role }: { role: string }) {
           <a href="mailto:support@arways.com" className="btn-ghost inline-flex items-center gap-2 text-sm font-medium">
             <Icons.Mail className="h-4 w-4" />Email support
           </a>
+          <a href={reportHref} className="btn-ghost inline-flex items-center gap-2 text-sm font-medium">
+            <Icons.AlertCircle className="h-4 w-4" />Report a problem
+          </a>
         </div>
+        <p className="mt-3 text-xs text-slate-400">Report a problem opens an email with your role and screen filled in — add what happened and what you expected.</p>
       </div>
     </div>
   );
@@ -460,7 +578,7 @@ export interface SearchDocs {
   users?: UserRow[];
 }
 
-export function GlobalSearch({ docs, base }: { docs: SearchDocs; base: string }) {
+export function GlobalSearch({ docs, base, placeholder }: { docs: SearchDocs; base: string; placeholder: string }) {
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(false);
   const results = useMemo(() => {
@@ -488,15 +606,22 @@ export function GlobalSearch({ docs, base }: { docs: SearchDocs; base: string })
 
   return (
     <div className="relative hidden md:block">
-      <input
+      <SearchField
         value={q}
-        onChange={(e) => { setQ(e.target.value); setOpen(true); }}
+        onChange={(v) => { setQ(v); setOpen(true); }}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         onFocus={() => setOpen(true)}
-        placeholder="Search…"
-        aria-label="Global search"
-        className="w-52 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm focus:border-blue-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 lg:w-64"
+        placeholder={placeholder}
+        label="Global search"
+        withIcon={false}
+        inputClassName="w-52 rounded-lg border border-slate-200 bg-slate-50 pl-3 pr-8 py-1.5 text-sm focus:border-blue-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 lg:w-64"
       />
+      {open && q.trim().length === 1 && (
+        <p role="status" className="absolute left-0 right-0 z-30 mt-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-500 shadow-lg dark:border-slate-700 dark:bg-slate-900">Keep typing. Search starts at 2 characters.</p>
+      )}
+      {open && q.trim().length >= 2 && results.length === 0 && (
+        <p role="status" className="absolute left-0 right-0 z-30 mt-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-500 shadow-lg dark:border-slate-700 dark:bg-slate-900">No matches for “{q.trim()}”. Try an order reference, plate number, or name.</p>
+      )}
       {open && results.length > 0 && (
         <ul className="absolute left-0 right-0 z-30 mt-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
           {results.map((r, i) => (

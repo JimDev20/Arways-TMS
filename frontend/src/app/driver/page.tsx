@@ -7,6 +7,8 @@ import { useRealtime } from '@/lib/realtime';
 import { errorMessage, gmapsUrl, type DriverRoute, type OrderDetail, type OrderDetailClient, type StopRow } from '@/lib/types';
 import { coordsOf, type MapPin } from '@/lib/map';
 import { Icons } from '@/lib/createLucideIcon';
+import { StatusPill } from '@/components/StatusPill';
+import { GatedButton } from '@/components/GatedButton';
 
 const MapView = dynamic(() => import('@/components/MapView').then((m) => m.MapView), { ssr: false });
 
@@ -86,6 +88,19 @@ export default function DriverHome() {
     })
     .filter((p): p is MapPin => p !== null);
 
+  // Two-way map ↔ stop-card selection [U13]: pins stay in first-route stop
+  // order, so the pin index maps back through the pinned stops.
+  const [selectedStopId, setSelectedStopId] = useState('');
+  const pinnedStops = (first?.stops ?? []).filter((s) => coordsOf(s.locationCoordinates));
+  const selectedIndex = pinnedStops.findIndex((s) => s.stopId === selectedStopId);
+  function selectStop(stopId: string, scroll: boolean) {
+    setSelectedStopId((prev) => (prev === stopId ? '' : stopId));
+    if (scroll && typeof window !== 'undefined') {
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      document.getElementById(`stop-card-${stopId}`)?.scrollIntoView({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' });
+    }
+  }
+
   async function patch(path: string, body?: Record<string, unknown>, okText?: string) {
     setIsSubmitting(true);
     setMsg(null);
@@ -94,7 +109,7 @@ export default function DriverHome() {
       if (okText) setMsg({ type: 'success', text: okText, at: Date.now() });
       load();
     } catch (e: unknown) {
-      setMsg({ type: 'error', text: errorMessage(e, 'Could not update. Try again.'), at: Date.now() });
+      setMsg({ type: 'error', text: errorMessage(e, 'Could not save the update. Check your connection and try again.'), at: Date.now() });
     } finally {
       setIsSubmitting(false);
     }
@@ -120,7 +135,7 @@ export default function DriverHome() {
       setReceipts((r) => ({ ...r, [stopId]: url }));
       setMsg({ type: 'success', text: 'Receipt photo attached. Press “Mark Delivered” to finish the stop.', at: Date.now() });
     } catch (e: unknown) {
-      setMsg({ type: 'error', text: errorMessage(e, 'Could not upload the photo. Try again.'), at: Date.now() });
+      setMsg({ type: 'error', text: errorMessage(e, 'Could not upload the photo. Use a photo under 5 MB and try again.'), at: Date.now() });
     } finally {
       setIsSubmitting(false);
       setUploadingId('');
@@ -143,11 +158,11 @@ export default function DriverHome() {
       if (error) throw error;
       const { data } = await sb.storage.from('receipts').createSignedUrl(path, 60 * 60 * 24 * 365 * 2);
       const url = data?.signedUrl ?? path;
-      if (!url) throw new Error('Upload succeeded but no photo URL was returned. Try again.');
+      if (!url) throw new Error('The upload finished but no photo link came back. Try uploading again.');
       setWaybills((w) => ({ ...w, [routeId]: url }));
       setMsg({ type: 'success', text: 'Waybill photo attached. You can now tap “Left dispatch”.', at: Date.now() });
     } catch (e: unknown) {
-      setMsg({ type: 'error', text: errorMessage(e, 'Could not upload the waybill photo. Try again.'), at: Date.now() });
+      setMsg({ type: 'error', text: errorMessage(e, 'Could not upload the waybill photo. Use a photo under 5 MB and try again.'), at: Date.now() });
     } finally {
       setUploadingWaybillId('');
     }
@@ -324,7 +339,15 @@ export default function DriverHome() {
             </button>
           </div>
           {pins.length > 0 ? (
-            <MapView pins={pins} height="h-64 sm:h-80" />
+            <MapView
+              pins={pins}
+              height="h-64 sm:h-80"
+              selectedIndex={selectedIndex >= 0 ? selectedIndex : null}
+              onSelectPin={(i) => {
+                const s = pinnedStops[i];
+                if (s) selectStop(s.stopId, true);
+              }}
+            />
           ) : (
             <p className="text-sm text-slate-500">No pins yet.</p>
           )}
@@ -400,14 +423,7 @@ export default function DriverHome() {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-lg font-bold text-slate-900">Route {route.routeNumber}</span>
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        route.status === 'Pending' ? 'bg-amber-50 text-amber-700' :
-                        route.status === 'In Progress' ? 'bg-blue-50 text-blue-700' :
-                        route.status === 'Completed' ? 'bg-green-50 text-green-700' :
-                        'bg-slate-100 text-slate-700'
-                      }`}>
-                        {route.status}
-                      </span>
+                      <StatusPill status={route.status} />
                     </div>
                   </div>
                 </div>
@@ -472,18 +488,19 @@ export default function DriverHome() {
                       onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadWaybill(route.routeId, f); e.target.value = ''; }}
                     />
                   </label>
-                  <button
+                  <GatedButton
                     onClick={() => leftDispatch(route.routeId, (route as { dispatchLeftPhotoUrl?: string | null }).dispatchLeftPhotoUrl)}
-                    disabled={uploadingWaybillId === route.routeId || leavingId === route.routeId || !waybillUrl}
+                    disabled={uploadingWaybillId === route.routeId || leavingId === route.routeId}
+                    gated={!waybillUrl}
+                    reasonId={`left-dispatch-reason-${route.routeId}`}
                     title={!waybillUrl ? 'Attach the waybill photo first' : route.dispatchedLeftAt ? 'Already left dispatch. Tap again to update' : 'Record departure with waybill photo'}
-                    aria-disabled={!waybillUrl}
                     className={`rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-60 ${waybillUrl ? 'bg-[#0e7a70] text-white hover:bg-[#0b625a]' : 'border border-slate-200 bg-white text-slate-400'}`}
                   >
                     {leavingId === route.routeId ? 'Recording…' : route.dispatchedLeftAt ? 'Left dispatch (update)' : 'Left dispatch'}
-                  </button>
+                  </GatedButton>
                 </div>
                 {!waybillUrl && (
-                  <p className="mt-2 text-xs text-amber-700">Attach waybill photo first — Left dispatch stays disabled until the photo is attached.</p>
+                  <p id={`left-dispatch-reason-${route.routeId}`} className="mt-2 text-xs text-amber-700">Attach waybill photo first. Left dispatch stays disabled until the photo is attached.</p>
                 )}
                 {waybillUrl && (
                     <a href={waybillUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs font-medium text-blue-700 hover:underline dark:text-blue-400">
@@ -503,7 +520,7 @@ export default function DriverHome() {
               {/* Stops */}
               <div className="space-y-3">
                 {(stops ?? []).map((s) => (
-                  <div key={s.stopId} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <div key={s.stopId} id={`stop-card-${s.stopId}`} className={`rounded-lg border bg-slate-50 p-4 ${selectedStopId === s.stopId ? 'border-[#0e7a70] ring-2 ring-[#0e7a70]/30' : 'border-slate-200'}`}>
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
@@ -511,17 +528,20 @@ export default function DriverHome() {
                             {s.stopSequence}
                           </span>
                           <span className="font-medium text-slate-900">{s.locationAddress}</span>
+                          <button
+                            type="button"
+                            onClick={() => selectStop(s.stopId, false)}
+                            aria-pressed={selectedStopId === s.stopId}
+                            aria-label={`Highlight ${s.locationAddress} on the map`}
+                            title="Highlight on map"
+                            className="rounded p-1.5 text-slate-400 hover:bg-slate-200 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0e7a70]"
+                          >
+                            <Icons.MapPin className="h-3.5 w-3.5" />
+                          </button>
                         </div>
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          s.status === 'Pending' ? 'bg-slate-100 text-slate-700' :
-                          s.status === 'Arrived' ? 'bg-blue-50 text-blue-700' :
-                          s.status === 'Departed' ? 'bg-slate-200 text-slate-700' :
-                          s.status === 'Delivered' ? 'bg-green-50 text-green-700' :
-                          s.status === 'Failed' ? 'bg-red-50 text-red-700' :
-                          'bg-slate-100 text-slate-700'
-                        }`}>
+                        <StatusPill status={s.status}>
                           {s.status} · {s.stopType}
-                        </span>
+                        </StatusPill>
                         <p className="mt-1 text-xs text-slate-500">
                           Arrived: {fmtTime(s.arrivedAt)}{s.stopType === 'Dropoff' ? ` · Delivered: ${fmtTime(s.deliveredAt)}` : ''}
                           {s.timeWindowStart ? ` · Window ${String(s.timeWindowStart).slice(0, 5)}–${String(s.timeWindowEnd ?? '').slice(0, 5)}` : ''}
@@ -621,15 +641,16 @@ export default function DriverHome() {
                           onChange={(e) => setNotes((n) => ({ ...n, [s.stopId]: e.target.value }))}
                         />
                         <div className="mt-2 flex flex-wrap gap-2">
-                          <button
+                          <GatedButton
                             onClick={() => markDelivered(s)}
-                            disabled={isSubmitting || !receipts[s.stopId]}
+                            disabled={isSubmitting}
+                            gated={!receipts[s.stopId]}
+                            reasonId={`deliver-reason-${s.stopId}`}
                             title={!receipts[s.stopId] ? 'Attach the receipt photo first' : 'Mark this stop delivered'}
-                            aria-disabled={!receipts[s.stopId]}
                             className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-60"
                           >
                             <Icons.Check className="h-3.5 w-3.5" />Mark Delivered
-                          </button>
+                          </GatedButton>
                           <button
                             onClick={() => { setFailFor(failFor === s.stopId ? '' : s.stopId); setFailReason(''); }}
                             className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50"
@@ -638,7 +659,7 @@ export default function DriverHome() {
                           </button>
                         </div>
                         {!receipts[s.stopId] && (
-                          <p className="mt-1 text-xs text-amber-700">Attach receipt photo first — Delivered stays disabled until the photo is attached.</p>
+                          <p id={`deliver-reason-${s.stopId}`} className="mt-1 text-xs text-amber-700">Attach receipt photo first. Delivered stays disabled until the photo is attached.</p>
                         )}
                         {failFor === s.stopId && (
                           <div className="mt-2 space-y-2">

@@ -4,6 +4,9 @@ import { Shell } from '@/components/Shell';
 import { api } from '@/lib/supabase';
 import { useRealtime } from '@/lib/realtime';
 import { Icons } from '@/lib/createLucideIcon';
+import { StatusPill } from '@/components/StatusPill';
+import { SearchField } from '@/components/SearchField';
+import { ListSkeleton } from '@/components/saas';
 import { errorMessage, type RouteFull, type StopRow } from '@/lib/types';
 
 const STATUS_FILTERS = ['All', 'Pending', 'In Progress', 'Completed'];
@@ -21,6 +24,7 @@ export default function MonitoringPage() {
   // UX #14: Needs attention chip — failed/stuck routes sort to the top.
   const [attentionOnly, setAttentionOnly] = useState(false);
   const [err, setErr] = useState('');
+  const [loading, setLoading] = useState(true);
   const load = useCallback(() => {
     api<RouteFull[]>('/routes').then((r) => {
       setRoutes(r);
@@ -35,7 +39,7 @@ export default function MonitoringPage() {
       setErr('');
     }).catch((e: unknown) => {
       setErr(errorMessage(e, 'Could not load routes.'));
-    });
+    }).finally(() => setLoading(false));
   }, []);
   useRealtime('orders', load);
   useRealtime('stops', load);
@@ -55,16 +59,14 @@ export default function MonitoringPage() {
   return (
     <Shell role="Secretary" title="Delivery Monitoring (live)">
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-52">
-          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-            <Icons.Search className="h-4 w-4 text-slate-400" />
-          </div>
-          <input
-            className="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
-            placeholder="Search route, order, driver, truck…"
-            value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search routes"
-          />
-        </div>
+        <SearchField
+          value={q}
+          onChange={setQ}
+          placeholder="Search route, order, driver, truck…"
+          label="Search routes"
+          className="flex-1 min-w-52"
+          inputClassName="block w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-9 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
+        />
         <select className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Filter by status">
           {STATUS_FILTERS.map((s) => <option key={s}>{s}</option>)}
         </select>
@@ -79,10 +81,14 @@ export default function MonitoringPage() {
         >
           Needs attention
         </button>
-        <span className="text-xs text-slate-500">{filtered.length} of {routes.length}</span>
+        <span className="text-xs text-slate-500" role="status">{filtered.length} of {routes.length}</span>
+        <span className="text-xs text-slate-400">Sort: needs attention first</span>
       </div>
       {err && <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{err}</div>}
 
+      {loading ? (
+        <ListSkeleton rows={3} />
+      ) : (
       <div className="grid gap-4">
         {filtered.map((r) => {
           const done = r.stops.filter((s) => ['Delivered', 'Failed'].includes(s.status)).length;
@@ -94,11 +100,7 @@ export default function MonitoringPage() {
                 <h2 className="text-base font-semibold text-slate-900">
                   {r.route.routeNumber} · {r.driverName} · {r.truckPlate}
                 </h2>
-                <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                  r.route.status === 'Completed' ? 'bg-green-50 text-green-700' :
-                  r.route.status === 'In Progress' ? 'bg-blue-50 text-blue-700' :
-                  'bg-slate-100 text-slate-600'
-                }`}>{r.route.status}</span>
+                <StatusPill status={r.route.status} />
               </div>
               <p className="mt-1 text-xs text-slate-500">Order {r.orderReference} ({r.orderStatus})</p>
               <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
@@ -119,7 +121,7 @@ export default function MonitoringPage() {
                 {r.stops.map((s, i: number) => (
                   <li key={s.stopId} className="flex gap-3">
                     <span className="flex flex-col items-center">
-                      <span className={`mt-1.5 h-2.5 w-2.5 rounded-full ${
+                      <span aria-hidden className={`mt-1.5 h-2.5 w-2.5 rounded-full ${
                         s.status === 'Delivered' ? 'bg-green-500' :
                         s.status === 'Failed' ? 'bg-red-500' :
                         ['Arrived', 'Departed'].includes(s.status) ? 'bg-blue-500' : 'bg-slate-300'
@@ -137,9 +139,15 @@ export default function MonitoringPage() {
           );
         })}
         {filtered.length === 0 && !err && (
-          <p className="rounded-xl bg-white py-10 text-center text-sm text-slate-400 shadow-sm">No routes match. Try a different search or filter.</p>
+          <div className="rounded-xl bg-white py-10 text-center shadow-sm">
+            <p className="text-sm text-slate-400">{routes.length === 0 ? 'No routes yet. Routes appear here once orders are created.' : 'No routes match. Try a different search or filter.'}</p>
+            {routes.length > 0 && (
+              <button onClick={() => { setQ(''); setStatus('All'); setDriver('All'); setAttentionOnly(false); }} className="btn-ghost mt-3 text-sm">Clear filter</button>
+            )}
+          </div>
         )}
       </div>
+      )}
     </Shell>
   );
 }
