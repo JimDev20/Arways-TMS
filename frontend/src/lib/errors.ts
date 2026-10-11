@@ -99,7 +99,7 @@ const EXACT: Record<string, string> = {
     // Deliberately generic per the contract above: never split into
     // "email not found" vs "wrong password" (account enumeration). Instead
     // this names every check the user can run themselves.
-    'Those details did not match an account together. Check three things: the email spelling (name@example.com, no extra spaces), Caps Lock (passwords are case-sensitive), and that you are using the newest password. Then try again.',
+    'Those details did not match an account together. Check four things: the email spelling (name@example.com, no extra spaces), Caps Lock (passwords are case-sensitive), that you are using the newest password, and the password length (at least 10 characters for newer passwords, 8 for older ones). Then try again.',
   'Missing token': 'You are not logged in. Please log in first.',
   'Invalid or expired token':
     'Your login expired. Please log out and log in again.',
@@ -160,8 +160,11 @@ export function isEmailLike(value: string): boolean {
  */
 export function emailHint(value: string): string {
   if (!value) return '';
-  if (!value.includes('@')) return 'Email must include @, like name@example.com.';
-  if (!isEmailLike(value)) return 'Email looks incomplete. It must look like name@example.com.';
+  if (value !== value.trim()) return 'Email has extra spaces. Remove the spaces at the start or end.';
+  const t = value.trim();
+  if (t.startsWith('@')) return 'Email is missing the name before @. Type it like name@example.com.';
+  if (!t.includes('@')) return 'Email must include @, like name@example.com.';
+  if (!isEmailLike(t)) return 'Email looks incomplete. It must look like name@example.com.';
   return '';
 }
 
@@ -185,12 +188,16 @@ export function loginEmailShapeError(): string {
 }
 
 /**
- * Login password shorter than current policy. Guidance only, NEVER a
- * submit blocker: accounts created before the 10-character rule may have
- * shorter passwords, and blocking them would lock out real users. Names
- * the rule and the fix (slow, careful re-type).
+ * Login password outside current policy (too short or too long). Guidance
+ * only, NEVER a submit blocker: accounts created before the 10-character
+ * rule may have shorter passwords, and blocking them would lock out real
+ * users. Names the rule and the fix (slow, careful re-type, or trimming).
  */
 export function shortPasswordGuidance(length: number): string {
+  if (length > 64) {
+    const over = length - 64;
+    return `Passwords stop at 64 characters (this entry has ${length}). Remove ${over} character${over === 1 ? '' : 's'}.`;
+  }
   return `Passwords are usually 10 or more characters (this entry has ${length}). Re-type it slowly to catch typos; passwords are case-sensitive.`;
 }
 
