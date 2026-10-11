@@ -115,7 +115,7 @@ export function ApprovalCard({ order, route, onDone }: { order: Order; route: Ro
       setMsg({ type: 'success', text: `Order ${order.orderReference} approved. The driver was notified.` });
       onDone();
     } catch (e: unknown) {
-      setMsg({ type: 'error', text: errorMessage(e, 'Could not approve. Try again.') });
+      setMsg({ type: 'error', text: errorMessage(e, 'Could not approve. Make sure all locations are pinned and the truck is still free, then try again.') });
     } finally {
       setIsApproving(false);
     }
@@ -133,7 +133,7 @@ export function ApprovalCard({ order, route, onDone }: { order: Order; route: Ro
       onDone();
       setReason('');
     } catch (e: unknown) {
-      setMsg({ type: 'error', text: errorMessage(e, 'Could not reject. Try again.') });
+      setMsg({ type: 'error', text: errorMessage(e, 'Could not reject. Type a rejection reason and try again.') });
     } finally {
       setIsRejecting(false);
     }

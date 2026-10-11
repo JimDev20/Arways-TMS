@@ -61,7 +61,7 @@ export default function ApprovalDetailPage({ params }: { params: Promise<{ id: s
       setMsg({ type: 'success', text: 'Order approved. The driver was notified.' });
       load();
     } catch (e: unknown) {
-      setMsg({ type: 'error', text: errorMessage(e, 'Could not approve. Try again.') });
+      setMsg({ type: 'error', text: errorMessage(e, 'Could not approve. Make sure all locations are pinned and the truck is still free, then try again.') });
     } finally {
       setBusy(false);
     }
@@ -77,7 +77,7 @@ export default function ApprovalDetailPage({ params }: { params: Promise<{ id: s
       setMsg({ type: 'success', text: 'Order rejected. The client was notified.' });
       load();
     } catch (e: unknown) {
-      setMsg({ type: 'error', text: errorMessage(e, 'Could not reject. Try again.') });
+      setMsg({ type: 'error', text: errorMessage(e, 'Could not reject. Type a rejection reason and try again.') });
     } finally {
       setBusy(false);
     }
@@ -95,7 +95,7 @@ export default function ApprovalDetailPage({ params }: { params: Promise<{ id: s
       setEditOpen(false);
       load();
     } catch (e: unknown) {
-      setMsg({ type: 'error', text: errorMessage(e, 'Could not update. Try again.') });
+      setMsg({ type: 'error', text: errorMessage(e, 'Could not save the changes. Check the date and time, then try again.') });
     } finally {
       setBusy(false);
     }

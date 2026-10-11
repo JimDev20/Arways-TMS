@@ -43,7 +43,7 @@ export function CancelOrderSection({
       setConfirming(false);
       onDone();
     } catch (e: unknown) {
-      setMsg({ type: 'error', text: errorMessage(e, 'Could not cancel. Try again.') });
+      setMsg({ type: 'error', text: errorMessage(e, 'Could not cancel this order. Refresh the page and try again.') });
     } finally {
       setBusy(false);
     }

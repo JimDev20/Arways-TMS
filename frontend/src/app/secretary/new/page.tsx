@@ -116,7 +116,7 @@ export default function SecretaryNewOrderPage() {
         msgRef.current?.focus({ preventScroll: true });
       });
     } catch (err: unknown) {
-      setMsg({ type: 'error', text: errorMessage(err, 'Could not submit the order. Try again.') });
+      setMsg({ type: 'error', text: errorMessage(err, 'Could not submit the order. Check the reference, truck, date, and map pins, then try again.') });
     } finally {
       setIsSubmitting(false);
     }

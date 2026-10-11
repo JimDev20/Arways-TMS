@@ -71,7 +71,7 @@ export default function UsersPage() {
       setOkMsg(`${created.fullName} (${created.email}) was added as ${created.role}.${extra} They can now log in.`);
       setForm({ email: '', password: '', fullName: '', role: 'Driver', phone: '', licenseNo: '', clientId: '' });
     } catch (e: unknown) {
-      setErr(errorMessage(e, 'Could not create the user. Try again.'));
+      setErr(errorMessage(e, 'Could not create the user. Check that the email is not already registered, then try again.'));
     }
     finally { setBusy(false); }
   }
@@ -93,7 +93,7 @@ export default function UsersPage() {
       await reload();
       setOkMsg(`${u.fullName} is now ${next}. ${next === 'Inactive' ? 'They can no longer log in.' : 'They can log in again.'}`);
     } catch (e: unknown) {
-      setErr(errorMessage(e, 'Could not change the status. Try again.'));
+      setErr(errorMessage(e, 'Could not change the status. Refresh the list and try again.'));
     } finally {
       setBusy(false);
     }
@@ -110,7 +110,7 @@ export default function UsersPage() {
       setOkMsg(`Password for ${target.email} was reset. Share the new password with them securely.`);
       setResetId(''); setNewPw('');
     } catch (e: unknown) {
-      setErr(errorMessage(e, 'Could not reset the password. Try again.'));
+      setErr(errorMessage(e, 'Could not reset the password. Use 10 to 64 characters and try again.'));
     }
     finally { setBusy(false); }
   }

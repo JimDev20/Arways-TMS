@@ -94,7 +94,7 @@ export default function DriverHome() {
       if (okText) setMsg({ type: 'success', text: okText, at: Date.now() });
       load();
     } catch (e: unknown) {
-      setMsg({ type: 'error', text: errorMessage(e, 'Could not update. Try again.'), at: Date.now() });
+      setMsg({ type: 'error', text: errorMessage(e, 'Could not save the update. Check your connection and try again.'), at: Date.now() });
     } finally {
       setIsSubmitting(false);
     }
@@ -120,7 +120,7 @@ export default function DriverHome() {
       setReceipts((r) => ({ ...r, [stopId]: url }));
       setMsg({ type: 'success', text: 'Receipt photo attached. Press “Mark Delivered” to finish the stop.', at: Date.now() });
     } catch (e: unknown) {
-      setMsg({ type: 'error', text: errorMessage(e, 'Could not upload the photo. Try again.'), at: Date.now() });
+      setMsg({ type: 'error', text: errorMessage(e, 'Could not upload the photo. Use a photo under 5 MB and try again.'), at: Date.now() });
     } finally {
       setIsSubmitting(false);
       setUploadingId('');
@@ -143,11 +143,11 @@ export default function DriverHome() {
       if (error) throw error;
       const { data } = await sb.storage.from('receipts').createSignedUrl(path, 60 * 60 * 24 * 365 * 2);
       const url = data?.signedUrl ?? path;
-      if (!url) throw new Error('Upload succeeded but no photo URL was returned. Try again.');
+      if (!url) throw new Error('The upload finished but no photo link came back. Try uploading again.');
       setWaybills((w) => ({ ...w, [routeId]: url }));
       setMsg({ type: 'success', text: 'Waybill photo attached. You can now tap “Left dispatch”.', at: Date.now() });
     } catch (e: unknown) {
-      setMsg({ type: 'error', text: errorMessage(e, 'Could not upload the waybill photo. Try again.'), at: Date.now() });
+      setMsg({ type: 'error', text: errorMessage(e, 'Could not upload the waybill photo. Use a photo under 5 MB and try again.'), at: Date.now() });
     } finally {
       setUploadingWaybillId('');
     }

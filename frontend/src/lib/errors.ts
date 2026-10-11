@@ -232,13 +232,13 @@ export function friendlyErrorMessage(err: unknown): string {
   if (/^Request failed \(\d+\)/.test(raw)) {
     return `${raw} If this keeps happening, contact the administrator.`;
   }
-  return raw || 'Something went wrong. Please try again.';
+  return raw || 'Something went wrong on our side. Try again in a few minutes.';
 }
 
 function extractMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
   if (typeof err === 'string') return err;
-  return 'Something went wrong. Please try again.';
+  return 'Something went wrong on our side. Try again in a few minutes.';
 }
 
 /**

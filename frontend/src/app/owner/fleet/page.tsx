@@ -71,7 +71,7 @@ export default function FleetPage() {
       });
       setMMsg({ type: 'success', text: 'Service entry recorded.' });
     } catch (err: unknown) {
-      setMMsg({ type: 'error', text: errorMessage(err, 'Could not record the service entry. Try again.') });
+      setMMsg({ type: 'error', text: errorMessage(err, 'Could not record the service entry. Check the date and note, then try again.') });
     } finally {
       setMBusy(false);
     }
@@ -132,7 +132,7 @@ export default function FleetPage() {
       await reload();
       setOkMsg(`Truck ${created.plateNumber ?? form.plateNumber.trim()} was added to the fleet.`);
       setForm({ plateNumber: '', truckType: 'Refrigerated', truckSize: '6W', capacityKg: 2000, assignedDriverId: '' });
-    } catch (e: unknown) { setErr(errorMessage(e, 'Could not add the truck. Try again.')); }
+    } catch (e: unknown) { setErr(errorMessage(e, 'Could not add the truck. Check that the plate number is new and the driver is free, then try again.')); }
     finally { setBusy(false); }
   }
 
@@ -153,7 +153,7 @@ export default function FleetPage() {
       });
       await reload();
       setOkMsg(`Truck ${edit.plateNumber.trim()} was updated.`);
-    } catch (e: unknown) { setErr(errorMessage(e, 'Could not update the truck. Try again.')); }
+    } catch (e: unknown) { setErr(errorMessage(e, 'Could not update the truck. Refresh the fleet list and try again.')); }
     finally { setBusy(false); }
   }
 
