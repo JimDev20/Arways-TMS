@@ -483,7 +483,7 @@ export default function DriverHome() {
                   </button>
                 </div>
                 {!waybillUrl && (
-                  <p className="mt-2 text-xs text-amber-700">Attach waybill photo first — Left dispatch stays disabled until the photo is attached.</p>
+                  <p className="mt-2 text-xs text-amber-700">Attach waybill photo first. Left dispatch stays disabled until the photo is attached.</p>
                 )}
                 {waybillUrl && (
                     <a href={waybillUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs font-medium text-blue-700 hover:underline dark:text-blue-400">
@@ -638,7 +638,7 @@ export default function DriverHome() {
                           </button>
                         </div>
                         {!receipts[s.stopId] && (
-                          <p className="mt-1 text-xs text-amber-700">Attach receipt photo first — Delivered stays disabled until the photo is attached.</p>
+                          <p className="mt-1 text-xs text-amber-700">Attach receipt photo first. Delivered stays disabled until the photo is attached.</p>
                         )}
                         {failFor === s.stopId && (
                           <div className="mt-2 space-y-2">

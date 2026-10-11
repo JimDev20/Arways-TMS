@@ -57,7 +57,7 @@ export default function MapPicker({
     if (from !== undefined) setPickedFrom(from);
     if (!inPH(lat_, lon_)) {
       if (looksSwappedPH(lat_, lon_)) {
-        setSearchMsg(`That pin (${lat_.toFixed(5)}, ${lon_.toFixed(5)}) is outside the Philippines — it looks like latitude and longitude are swapped. Swap them (lat ~${lon_.toFixed(5)}, lng ~${lat_.toFixed(5)}) or re-pick the correct spot in the Philippines.`);
+        setSearchMsg(`That pin (${lat_.toFixed(5)}, ${lon_.toFixed(5)}) is outside the Philippines. It looks like latitude and longitude are swapped. Swap them (lat ~${lon_.toFixed(5)}, lng ~${lat_.toFixed(5)}) or re-pick the correct spot in the Philippines.`);
       } else {
         setSearchMsg(`That pin (${lat_.toFixed(5)}, ${lon_.toFixed(5)}) is outside the Philippines (lat 4–21, lng 116–127). Move the pin to the right place inside the Philippines.`);
       }
@@ -179,7 +179,7 @@ export default function MapPicker({
         )}
         {lat != null && lon != null && !inPH(lat, lon) && (
           <span className="rounded bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700" role="alert">
-            Outside Philippines (lat 4–21, lng 116–127) — move the pin inside the Philippines.
+            Outside Philippines (lat 4–21, lng 116–127). Move the pin inside the Philippines.
           </span>
         )}
         {lat != null && lon != null && inPH(lat, lon) && (
@@ -193,7 +193,7 @@ export default function MapPicker({
           </a>
         )}
         {lat != null && pickedFrom && search && !search.includes(pickedFrom.slice(0, 12)) && pickedFrom !== 'map click' && !pickedFrom.startsWith('Pinned') && (
-          <span className="text-xs text-amber-700">Address changed after pin — re-check the pin matches.</span>
+          <span className="text-xs text-amber-700">Address changed after pin. Re-check that the pin matches.</span>
         )}
         <details className="text-xs text-slate-500">
           <summary className="cursor-pointer font-medium text-slate-600 hover:underline">Enter coordinates</summary>
@@ -209,7 +209,7 @@ export default function MapPicker({
           <p className="mt-1">Format: lat, lng (e.g. 14.6760, 121.0437).</p>
         </details>
       </div>
-      <p className="mt-1 text-xs text-slate-400">Philippines only (lat 4–21, lng 116–127). Search first for exact stores, then verify the pin on the map — click the map only for fine-tuning.</p>
+      <p className="mt-1 text-xs text-slate-400">Philippines only (lat 4–21, lng 116–127). Search first for exact stores, then verify the pin on the map. Click the map only for fine-tuning.</p>
     </div>
   );
 }

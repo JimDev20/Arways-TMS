@@ -53,7 +53,7 @@ export function assertCoords(lat: unknown, lon: unknown, label: string): { lat: 
     const swappedFits = lo >= LAT_MIN && lo <= LAT_MAX && la >= LON_MIN && la <= LON_MAX;
     if (swappedFits) {
       throw new BadRequestException(
-        `${label} is outside the Philippines (lat ${LAT_MIN}–${LAT_MAX}, lng ${LON_MIN}–${LON_MAX}). It looks like the latitude and longitude are swapped (got lat ${la}, lng ${lo}). Move the pin to the right place — for Maanahao, Masbate use lat ~12.06, lng ~123.90.`,
+        `${label} is outside the Philippines (lat ${LAT_MIN}–${LAT_MAX}, lng ${LON_MIN}–${LON_MAX}). It looks like the latitude and longitude are swapped (got lat ${la}, lng ${lo}). Move the pin to the right place. For Maanahao, Masbate use lat ~12.06, lng ~123.90.`,
       );
     }
     throw new BadRequestException(`${label} is outside the Philippines (lat ${LAT_MIN}–${LAT_MAX}, lng ${LON_MIN}–${LON_MAX}). Move the pin to the right place.`);

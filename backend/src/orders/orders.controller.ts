@@ -353,7 +353,7 @@ export class OrdersController {
         throw new BadRequestException(`Truck ${truck.plateNumber} is in Maintenance and cannot be approved. Pick an Available truck (reject + recreate).`);
       }
       if (truck.status !== 'Available') {
-        throw new BadRequestException(`Truck ${truck.plateNumber} is currently ${truck.status}. It was booked by another order — reject this one and recreate with a free truck.`);
+        throw new BadRequestException(`Truck ${truck.plateNumber} is currently ${truck.status}. It was booked by another order. Reject this one and recreate with a free truck.`);
       }
       if (!truck.assignedDriverId) {
         throw new BadRequestException(`Truck ${truck.plateNumber} has no assigned driver. Assign a driver first.`);
@@ -391,7 +391,7 @@ export class OrdersController {
       }
     });
     if (r) {
-      await this.notify([r.assignedDriverId], 'route_assigned', `Route ${r.routeNumber} approved — start delivery`, id);
+      await this.notify([r.assignedDriverId], 'route_assigned', `Route ${r.routeNumber} approved. Start delivery.`, id);
     }
     return { ok: true };
   }
