@@ -97,6 +97,7 @@ export default function LoginPage() {
                   id="email"
                   type="email"
                   autoComplete="username"
+                  placeholder="name@example.com"
                   aria-describedby={emailHint(email) ? 'email-hint' : undefined}
                   className="block w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm text-slate-900 placeholder-slate-400 focus:border-[#0e7a70] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#0e7a70] transition-all"
                   value={email}
@@ -116,6 +117,7 @@ export default function LoginPage() {
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
+                  placeholder="Your password"
                   aria-describedby={[error ? 'login-error' : null, capsOn && password ? 'pw-caps' : null, password && password.length < 10 ? 'pw-len' : null].filter(Boolean).join(' ') || undefined}
                   className="block w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-11 text-sm text-slate-900 placeholder-slate-400 focus:border-[#0e7a70] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#0e7a70] transition-all"
                   value={password}
