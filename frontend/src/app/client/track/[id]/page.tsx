@@ -74,7 +74,7 @@ export default function TrackPage({ params }: { params: Promise<{ id: string }> 
       setStoreMsg({ type: 'success', text: `Assigned ${valid.length} store${valid.length === 1 ? '' : 's'}. The driver was notified.` });
       load();
     } catch (e: unknown) {
-      setStoreMsg({ type: 'error', text: errorMessage(e, 'Could not assign stores. Try again.') });
+      setStoreMsg({ type: 'error', text: errorMessage(e, 'Could not assign stores. Make sure each store has an address and a map pin, then try again.') });
     } finally {
       setSavingStores(false);
     }

@@ -36,7 +36,7 @@ export default function OwnerBroadcastPage() {
       setMessage('');
       setConfirming(false);
     } catch (err: unknown) {
-      setMsg({ type: 'error', text: errorMessage(err, 'Could not send the announcement. Try again.') });
+      setMsg({ type: 'error', text: errorMessage(err, 'Could not send the announcement. Check your connection and try again.') });
     } finally {
       setBusy(false);
     }

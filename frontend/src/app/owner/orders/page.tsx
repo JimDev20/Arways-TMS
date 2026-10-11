@@ -196,7 +196,7 @@ function OwnerApprovalActions({ order, onDone }: { order: Order; onDone: () => v
       setMsg({ type: 'success', text: `Order ${order.orderReference} approved. The driver was notified.` });
       onDone();
     } catch (e: unknown) {
-      setMsg({ type: 'error', text: errorMessage(e, 'Could not approve. Try again.') });
+      setMsg({ type: 'error', text: errorMessage(e, 'Could not approve. Make sure all locations are pinned and the truck is still free, then try again.') });
     } finally {
       setBusy(false);
     }
@@ -214,7 +214,7 @@ function OwnerApprovalActions({ order, onDone }: { order: Order; onDone: () => v
       onDone();
       setReason('');
     } catch (e: unknown) {
-      setMsg({ type: 'error', text: errorMessage(e, 'Could not reject. Try again.') });
+      setMsg({ type: 'error', text: errorMessage(e, 'Could not reject. Type a rejection reason and try again.') });
     } finally {
       setBusy(false);
     }
@@ -231,7 +231,7 @@ function OwnerApprovalActions({ order, onDone }: { order: Order; onDone: () => v
       setEditOpen(false);
       onDone();
     } catch (e: unknown) {
-      setMsg({ type: 'error', text: errorMessage(e, 'Could not update. Try again.') });
+      setMsg({ type: 'error', text: errorMessage(e, 'Could not save the changes. Check the date and time, then try again.') });
     } finally {
       setBusy(false);
     }

@@ -48,7 +48,7 @@ export default function OwnerClientsPage() {
       setOkMsg(`${form.companyName.trim()} was added as a client.`);
       setForm(EMPTY);
     } catch (e: unknown) {
-      setErr(errorMessage(e, 'Could not add the client. Try again.'));
+      setErr(errorMessage(e, 'Could not add the client. Check that the email is not already used, then try again.'));
     }
     finally { setBusy(false); }
   }
