@@ -391,6 +391,7 @@ export default function UsersPage() {
                 </FieldHint>
                 <button type="button" onClick={() => setShowNewPw((v) => !v)}
                   aria-label={showNewPw ? 'Hide password' : 'Show password'}
+                  aria-pressed={showNewPw}
                   className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-700 focus:outline-none">
                   {showNewPw ? <Icons.EyeOff className="h-4 w-4" /> : <Icons.Eye className="h-4 w-4" />}
                 </button>
