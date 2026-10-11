@@ -17,7 +17,7 @@
  * users recognize, diagnose, and recover). Every message below follows it:
  * WHAT happened (plain words, no codes or jargon) + WHY (which field,
  * which rule, in user terms) + HOW to fix (exactly one concrete action).
- * Polite, no blame ("re-type" never "you failed"). The caller must preserve
+ * Plain words, no blame ("re-type" never "you failed"). The caller must preserve
  * the user's input on failure (never clear the form).
  * Security boundary: server-side credential failures stay DELIBERATELY
  * generic (one message for unknown email, wrong password, inactive
@@ -112,7 +112,7 @@ const EXACT: Record<string, string> = {
   'Only Owner can create users':
     'Only an Owner account can create users. Ask an Owner to create this account.',
   'Insufficient role permission':
-    'Your account role is not allowed to do this. Ask an Owner to change your role or do it for you.',
+    'You do not have access to this page. Contact dispatch if you need it.',
   'Supabase env not configured':
     'The server is missing its database setup. Contact the administrator.',
   'Missing required fields':
@@ -216,7 +216,7 @@ export function friendlyErrorMessage(err: unknown): string {
   // Server-side schema drift (missing migration column): tell the user it is
   // a server setup issue, not their input.
   if (raw.startsWith('Database is missing column')) {
-    return 'The server database is missing an update, so this action cannot complete right now. Contact the administrator (missing database migration). Your data is safe. Try again after the server is updated.';
+    return 'We cannot process your request right now because of a problem on our side. We are working on it. Try again in a few minutes.';
   }
 
   // HTTP-status-only fallback: name what it means.
@@ -225,20 +225,20 @@ export function friendlyErrorMessage(err: unknown): string {
     const code = statusMatch[1];
     if (code === '400') return 'The server rejected the data: a field is missing or invalid. Check each highlighted field and try again.';
     if (code === '401') return 'You are not logged in (or the session expired). Please log in again.';
-    if (code === '403') return 'Your account role is not allowed to do this. Ask an Owner for help.';
+    if (code === '403') return 'You do not have access to this page. Contact dispatch if you need it.';
     if (code === '404') return 'That record was not found. It may have been deleted. Refresh the page.';
     return `Request failed (${code}). If this keeps happening, contact the administrator.`;
   }
   if (/^Request failed \(\d+\)/.test(raw)) {
     return `${raw} If this keeps happening, contact the administrator.`;
   }
-  return raw || 'Something went wrong. Please try again.';
+  return raw || 'Something went wrong. Try again.';
 }
 
 function extractMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
   if (typeof err === 'string') return err;
-  return 'Something went wrong. Please try again.';
+  return 'Something went wrong. Try again.';
 }
 
 /**
