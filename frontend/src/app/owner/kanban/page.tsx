@@ -46,6 +46,7 @@ export default function OwnerKanbanPage() {
         query={q}
         showCancelled={showCancelled}
         onMove={(o) => router.push(o.status === 'Pending' ? `/owner/approvals/${o.orderId}` : '/owner/routes')}
+        onClearFilters={() => { setQ(''); setShowCancelled(false); }}
       />
       <p className="mt-4 text-xs text-slate-400">Click a card to open it: pending orders go to approval detail, the rest to monitoring.</p>
     </Shell>

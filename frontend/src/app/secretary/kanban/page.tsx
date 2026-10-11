@@ -46,6 +46,7 @@ export default function SecretaryKanbanPage() {
         query={q}
         showCancelled={showCancelled}
         onMove={(o) => router.push(o.status === 'Pending' ? `/secretary/approvals/${o.orderId}` : '/secretary/monitoring')}
+        onClearFilters={() => { setQ(''); setShowCancelled(false); }}
       />
       <p className="mt-4 text-xs text-slate-400">Click a card to open it: pending orders go to approval detail, the rest to monitoring.</p>
     </Shell>

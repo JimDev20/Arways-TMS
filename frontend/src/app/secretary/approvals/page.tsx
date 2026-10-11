@@ -59,6 +59,9 @@ export default function ApprovalsPage() {
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 py-16 text-center">
           <h3 className="mt-4 text-lg font-semibold text-slate-900">No pending approvals</h3>
           <p className="mt-2 text-sm text-slate-500">{orders.length === 0 ? 'All caught up!' : 'No approvals match. Try a different search.'}</p>
+          {orders.length > 0 && (
+            <button onClick={() => setQ('')} className="btn-ghost mt-3 text-sm">Clear filter</button>
+          )}
         </div>
       )}
     </Shell>

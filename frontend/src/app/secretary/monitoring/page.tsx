@@ -134,7 +134,12 @@ export default function MonitoringPage() {
           );
         })}
         {filtered.length === 0 && !err && (
-          <p className="rounded-xl bg-white py-10 text-center text-sm text-slate-400 shadow-sm">No routes match. Try a different search or filter.</p>
+          <div className="rounded-xl bg-white py-10 text-center shadow-sm">
+            <p className="text-sm text-slate-400">{routes.length === 0 ? 'No routes yet. Routes appear here once orders are created.' : 'No routes match. Try a different search or filter.'}</p>
+            {routes.length > 0 && (
+              <button onClick={() => { setQ(''); setStatus('All'); setDriver('All'); setAttentionOnly(false); }} className="btn-ghost mt-3 text-sm">Clear filter</button>
+            )}
+          </div>
         )}
       </div>
     </Shell>

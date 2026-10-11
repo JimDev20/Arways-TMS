@@ -24,11 +24,28 @@ export function Card({ title, action, children, className = '' }: { title?: stri
   );
 }
 
-export function Empty({ message, cta }: { message: string; cta?: React.ReactNode }) {
+export function Empty({ message, description, cta }: { message: string; description?: string; cta?: React.ReactNode }) {
   return (
     <div className="flex flex-col items-center justify-center py-8 text-center">
-      <p className="text-sm text-slate-400 dark:text-slate-400">{message}</p>
+      <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{message}</p>
+      {description && <p className="mt-1 max-w-md text-xs text-slate-400">{description}</p>}
       {cta && <div className="mt-3">{cta}</div>}
+    </div>
+  );
+}
+
+/**
+ * Access-denied error state (ARWAYS-UI-IMPROVEMENTS §3.2): never render 403
+ * through Empty, so it is not mistaken for "you have no data".
+ */
+export function NoAccess({ backHref = '/', backLabel = 'Back to home' }: { backHref?: string; backLabel?: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center rounded-xl border border-red-200 bg-red-50 px-6 py-10 text-center" role="alert">
+      <p className="text-sm font-semibold text-red-700">You do not have access to this page.</p>
+      <p className="mt-1 max-w-md text-xs text-red-600">Contact dispatch if you need it.</p>
+      <Link href={backHref} className="mt-3 rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-100">
+        {backLabel}
+      </Link>
     </div>
   );
 }
@@ -251,7 +268,7 @@ function kanbanStatus(o: Order, stops: StopRow[]): string {
   return 'In Transit';
 }
 
-export function KanbanBoard({ orders, routes, onMove, query = '', showCancelled = false }: { orders: Order[]; routes: RouteFull[]; onMove?: (order: Order) => void; query?: string; showCancelled?: boolean }) {
+export function KanbanBoard({ orders, routes, onMove, query = '', showCancelled = false, onClearFilters }: { orders: Order[]; routes: RouteFull[]; onMove?: (order: Order) => void; query?: string; showCancelled?: boolean; onClearFilters?: () => void }) {
   const stopsByOrder = useMemo(() => {
     const m = new Map<string, StopRow[]>();
     for (const r of routes) m.set(r.route.orderId, r.stops ?? []);
@@ -265,6 +282,7 @@ export function KanbanBoard({ orders, routes, onMove, query = '', showCancelled 
     : active;
   const cols = showCancelled ? [...KANBAN_COLS, 'Cancelled' as const] : KANBAN_COLS;
   return (
+    <>
     <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-5">
       {cols.map((col) => {
         const cards = scoped.filter((o) => kanbanStatus(o, stopsByOrder.get(o.orderId) ?? []) === col);
@@ -292,6 +310,14 @@ export function KanbanBoard({ orders, routes, onMove, query = '', showCancelled 
         );
       })}
     </div>
+    {needle && scoped.length === 0 && (
+      <Empty
+        message={`No cards match "${query.trim()}".`}
+        description="Try a different search."
+        cta={onClearFilters ? <button onClick={onClearFilters} className="btn-ghost text-sm">Clear filter</button> : undefined}
+      />
+    )}
+    </>
   );
 }
 

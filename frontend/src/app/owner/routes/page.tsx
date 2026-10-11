@@ -93,7 +93,12 @@ export default function OwnerRoutesPage() {
           );
         })}
         {filtered.length === 0 && !err && (
-          <p className="rounded-xl bg-white py-10 text-center text-sm text-slate-400 shadow-sm">No routes yet. Routes appear here once orders are created.</p>
+          <div className="rounded-xl bg-white py-10 text-center shadow-sm">
+            <p className="text-sm text-slate-400">{routes.length === 0 ? 'No routes yet. Routes appear here once orders are created.' : 'No routes match. Try a different search.'}</p>
+            {routes.length > 0 && (
+              <button onClick={() => setQ('')} className="btn-ghost mt-3 text-sm">Clear filter</button>
+            )}
+          </div>
         )}
       </div>
     </Shell>

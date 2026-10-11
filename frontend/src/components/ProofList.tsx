@@ -51,7 +51,10 @@ export function ProofList() {
         <p role="status" className="mb-3 text-xs text-slate-500">{filtered.length} of {items.length} records</p>
       )}
       {filtered.length === 0 && (
-        <p className="rounded-xl bg-white py-10 text-center text-sm text-slate-400 shadow-sm">No proof records match. Try a different search.</p>
+        <div className="rounded-xl bg-white py-10 text-center shadow-sm">
+          <p className="text-sm text-slate-400">No proof records match. Try a different search.</p>
+          <button onClick={() => setQ('')} className="btn-ghost mt-3 text-sm">Clear filter</button>
+        </div>
       )}
       <div className="grid gap-4 md:grid-cols-2">
         {filtered.map((p) => (
