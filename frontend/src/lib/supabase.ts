@@ -58,7 +58,7 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
       localStorage.removeItem('arways_user');
       window.location.href = new URL('/login', window.location.origin).toString();
     }
-    throw withStatus('Session expired. Please log in again.', 401);
+    throw withStatus('Session expired. Log in again.', 401);
   }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));

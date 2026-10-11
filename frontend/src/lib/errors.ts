@@ -100,11 +100,11 @@ const EXACT: Record<string, string> = {
     // "email not found" vs "wrong password" (account enumeration). Instead
     // this names every check the user can run themselves.
     'Those details did not match an account together. Check four things: the email spelling (name@example.com, no extra spaces), Caps Lock (passwords are case-sensitive), that you are using the newest password, and the password length (at least 10 characters for newer passwords, 8 for older ones). Then try again.',
-  'Missing token': 'You are not logged in. Please log in first.',
+  'Missing token': 'You are not logged in. Log in first.',
   'Invalid or expired token':
-    'Your login expired. Please log out and log in again.',
-  'Session expired. Please log in again.':
-    'Your session expired. Please log in again.',
+    'Your login expired. Log out and log in again.',
+  'Session expired. Log in again.':
+    'Your session expired. Log in again.',
   'Too many attempts. Try again later.':
     'Too many login attempts (10 in 10 minutes). Wait 10 minutes, then try again.',
   'Email already in use':
@@ -254,8 +254,8 @@ export function friendlyErrorMessage(err: unknown): string {
   const statusMatch = raw.match(/^Request failed \((\d+)\)\.?$/);
   if (statusMatch) {
     const code = statusMatch[1];
-    if (code === '400') return 'The server rejected the data: a field is missing or invalid. Check each highlighted field and try again.';
-    if (code === '401') return 'You are not logged in (or the session expired). Please log in again.';
+    if (code === '400') return 'The server rejected the data: a field is missing or wrong. Check each highlighted field and try again.';
+    if (code === '401') return 'You are not logged in (or the session expired). Log in again.';
     if (code === '403') return 'You do not have access to this page. Contact dispatch if you need it.';
     if (code === '404') return 'That record was not found. It may have been deleted. Refresh the page.';
     return `Request failed (${code}). If this keeps happening, contact the administrator.`;
