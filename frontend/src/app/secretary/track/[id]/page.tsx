@@ -222,7 +222,7 @@ export default function SecretaryTrackDetailPage({ params }: { params: Promise<{
                         aria-pressed={selectedStopId === s.stopId}
                         aria-label={`Highlight ${s.locationAddress} on the map`}
                         title="Highlight on map"
-                        className="rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0e7a70]"
+                        className="rounded p-1.5 text-slate-400 hover:bg-slate-200 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0e7a70]"
                       >
                         <Icons.MapPin className="h-3.5 w-3.5" />
                       </button>
