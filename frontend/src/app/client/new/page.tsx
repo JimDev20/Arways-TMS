@@ -304,7 +304,7 @@ export default function NewOrderPage() {
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold text-slate-800">Drop-off #{i + 1} (optional)</p>
                     <button type="button" onClick={() => setDrops(drops.filter((x) => x.id !== d.id))}
-                      className="text-xs font-medium text-red-600 hover:underline">
+                      className="rounded px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 hover:underline">
                       Remove
                     </button>
                   </div>
