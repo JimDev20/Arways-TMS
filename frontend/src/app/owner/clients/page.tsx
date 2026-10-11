@@ -5,7 +5,7 @@ import { api } from '@/lib/supabase';
 import { Icons } from '@/lib/createLucideIcon';
 import { errorMessage, type ClientRow } from '@/lib/types';
 import { emailHint, isEmailLike } from '@/lib/errors';
-import { FieldHint } from '@/components/FieldHint';
+import { FieldHint, FormErrorBanner, type FormErrorItem } from '@/components/FieldHint';
 
 const EMPTY = { companyName: '', contactPerson: '', phone: '', email: '', dispatchAreaAddress: '', lon: '', lat: '', entranceInstructions: '', dispatcherContact: '' };
 
@@ -15,6 +15,8 @@ export default function OwnerClientsPage() {
   const [err, setErr] = useState('');
   const [okMsg, setOkMsg] = useState('');
   const [busy, setBusy] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<FormErrorItem[]>([]);
+  const fieldErr = (id: string) => fieldErrors.find((e) => e.fieldId === id)?.message;
 
   async function reload() {
     setClients(await api<ClientRow[]>('/clients'));
@@ -25,15 +27,20 @@ export default function OwnerClientsPage() {
 
   async function create(e: React.FormEvent) {
     e.preventDefault(); setErr(''); setOkMsg('');
-    if (!form.companyName.trim()) { setErr('Company name is empty. Type the client company name.'); return; }
-    if (!form.email.trim()) { setErr('Email is empty. Type the client contact email.'); return; }
-    if (!isEmailLike(form.email)) { setErr(`“${form.email.trim()}” does not look like an email. It must look like name@example.com.`); return; }
-    if (!form.dispatchAreaAddress.trim()) { setErr('Dispatch area address is empty. Type where trucks should go.'); return; }
-    if (!form.lon.trim() || !form.lat.trim()) { setErr('Coordinates are empty. Type the longitude and latitude where trucks should go.'); return; }
+    const problems: FormErrorItem[] = [];
+    if (!form.companyName.trim()) problems.push({ fieldId: 'client-company', message: 'Company name is empty. Type the client company name.' });
+    if (!form.email.trim()) problems.push({ fieldId: 'client-email', message: 'Email is empty. Type the client contact email.' });
+    else if (!isEmailLike(form.email)) problems.push({ fieldId: 'client-email', message: `“${form.email.trim()}” does not look like an email. It must look like name@example.com.` });
+    if (!form.dispatchAreaAddress.trim()) problems.push({ fieldId: 'client-address', message: 'Dispatch area address is empty. Type where trucks should go.' });
     const lon = Number(form.lon), lat = Number(form.lat);
-    if (!Number.isFinite(lon) || !Number.isFinite(lat)) { setErr('Coordinates are not numbers. Type numeric longitude and latitude, e.g. 121.0437, 14.6760.'); return; }
-    if (lon < -180 || lon > 180) { setErr(`Longitude ${form.lon.trim()} is out of range. It must be between -180 and 180.`); return; }
-    if (lat < -90 || lat > 90) { setErr(`Latitude ${form.lat.trim()} is out of range. It must be between -90 and 90.`); return; }
+    if (!form.lon.trim() || !form.lat.trim()) problems.push({ fieldId: 'client-lon', message: 'Coordinates are empty. Type the longitude and latitude where trucks should go.' });
+    else if (!Number.isFinite(lon) || !Number.isFinite(lat)) problems.push({ fieldId: 'client-lon', message: 'Coordinates are not numbers. Type numeric longitude and latitude, e.g. 121.0437, 14.6760.' });
+    else {
+      if (lon < -180 || lon > 180) problems.push({ fieldId: 'client-lon', message: `Longitude ${form.lon.trim()} is out of range. It must be between -180 and 180.` });
+      if (lat < -90 || lat > 90) problems.push({ fieldId: 'client-lat', message: `Latitude ${form.lat.trim()} is out of range. It must be between -90 and 90.` });
+    }
+    setFieldErrors(problems);
+    if (problems.length > 0) return;
     setBusy(true);
     try {
       await api('/clients', {
@@ -47,6 +54,7 @@ export default function OwnerClientsPage() {
       await reload();
       setOkMsg(`${form.companyName.trim()} was added as a client.`);
       setForm(EMPTY);
+      setFieldErrors([]);
     } catch (e: unknown) {
       setErr(errorMessage(e, 'Could not add the client. Try again.'));
     }
@@ -115,10 +123,12 @@ export default function OwnerClientsPage() {
         <h2 className="mb-4 text-lg font-semibold text-slate-900">Add Client Company</h2>
         {err && <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center gap-2" role="alert"><Icons.AlertCircle className="h-5 w-5 shrink-0" />{err}</div>}
         {okMsg && <div className="mb-4 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700 flex items-center gap-2" role="status"><Icons.CheckCircle className="h-5 w-5 shrink-0" />{okMsg}</div>}
+        <FormErrorBanner errors={fieldErrors} />
         <form onSubmit={create} className="grid gap-4 max-w-lg">
           <div className="grid gap-2">
-            <label className="block text-sm font-medium text-slate-700">Company Name *</label>
-            <input className={input} value={form.companyName} onChange={set('companyName')} required placeholder="Jollibee Foods" />
+            <label className="block text-sm font-medium text-slate-700" htmlFor="client-company">Company Name *</label>
+            <input id="client-company" aria-describedby={fieldErr('client-company') ? 'client-company-error' : undefined} className={input} value={form.companyName} onChange={set('companyName')} required placeholder="Jollibee Foods" />
+            {fieldErr('client-company') && <FieldHint id="client-company-error" tone="error">{fieldErr('client-company')}</FieldHint>}
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
@@ -131,24 +141,27 @@ export default function OwnerClientsPage() {
             </div>
           </div>
           <div className="grid gap-2">
-            <label className="block text-sm font-medium text-slate-700">Email *</label>
-            <input type="email" aria-describedby={emailHint(form.email) ? 'client-email-hint' : undefined} className={input} value={form.email} onChange={set('email')} required placeholder="dispatch@company.com" />
-            {emailHint(form.email) && <FieldHint id="client-email-hint" tone="error">{emailHint(form.email)}</FieldHint>}
+            <label className="block text-sm font-medium text-slate-700" htmlFor="client-email">Email *</label>
+            <input id="client-email" type="email" aria-describedby={(fieldErr('client-email') || emailHint(form.email)) ? 'client-email-hint' : undefined} className={input} value={form.email} onChange={set('email')} required placeholder="dispatch@company.com" />
+            {(fieldErr('client-email') || emailHint(form.email)) && <FieldHint id="client-email-hint" tone="error">{fieldErr('client-email') || emailHint(form.email)}</FieldHint>}
           </div>
           <div className="grid gap-2">
-            <label className="block text-sm font-medium text-slate-700">Dispatch Area Address *</label>
-            <input className={input} value={form.dispatchAreaAddress} onChange={set('dispatchAreaAddress')} required placeholder="Commissary, Quirino Highway, QC" />
+            <label className="block text-sm font-medium text-slate-700" htmlFor="client-address">Dispatch Area Address *</label>
+            <input id="client-address" aria-describedby={fieldErr('client-address') ? 'client-address-error' : undefined} className={input} value={form.dispatchAreaAddress} onChange={set('dispatchAreaAddress')} required placeholder="Commissary, Quirino Highway, QC" />
+            {fieldErr('client-address') && <FieldHint id="client-address-error" tone="error">{fieldErr('client-address')}</FieldHint>}
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
-              <label className="block text-sm font-medium text-slate-700">Longitude *</label>
-              <input className={input} value={form.lon} onChange={set('lon')} required placeholder="121.0437" inputMode="decimal" />
+              <label className="block text-sm font-medium text-slate-700" htmlFor="client-lon">Longitude *</label>
+              <input id="client-lon" aria-describedby={fieldErr('client-lon') ? 'client-lon-error' : undefined} className={input} value={form.lon} onChange={set('lon')} required placeholder="121.0437" inputMode="decimal" />
             </div>
             <div className="grid gap-2">
-              <label className="block text-sm font-medium text-slate-700">Latitude *</label>
-              <input className={input} value={form.lat} onChange={set('lat')} required placeholder="14.6760" inputMode="decimal" />
+              <label className="block text-sm font-medium text-slate-700" htmlFor="client-lat">Latitude *</label>
+              <input id="client-lat" aria-describedby={fieldErr('client-lat') ? 'client-lat-error' : undefined} className={input} value={form.lat} onChange={set('lat')} required placeholder="14.6760" inputMode="decimal" />
             </div>
           </div>
+          {fieldErr('client-lon') && <FieldHint id="client-lon-error" tone="error">{fieldErr('client-lon')}</FieldHint>}
+          {fieldErr('client-lat') && <FieldHint id="client-lat-error" tone="error">{fieldErr('client-lat')}</FieldHint>}
           <div className="grid gap-2">
             <label className="block text-sm font-medium text-slate-700">Entrance Instructions</label>
             <textarea className={input} rows={2} value={form.entranceInstructions} onChange={set('entranceInstructions')} placeholder="Use Gate 3, wait at Loading Bay 5" />
