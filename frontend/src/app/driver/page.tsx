@@ -8,6 +8,7 @@ import { errorMessage, gmapsUrl, type DriverRoute, type OrderDetail, type OrderD
 import { coordsOf, type MapPin } from '@/lib/map';
 import { Icons } from '@/lib/createLucideIcon';
 import { StatusPill } from '@/components/StatusPill';
+import { GatedButton } from '@/components/GatedButton';
 
 const MapView = dynamic(() => import('@/components/MapView').then((m) => m.MapView), { ssr: false });
 
@@ -466,18 +467,19 @@ export default function DriverHome() {
                       onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadWaybill(route.routeId, f); e.target.value = ''; }}
                     />
                   </label>
-                  <button
+                  <GatedButton
                     onClick={() => leftDispatch(route.routeId, (route as { dispatchLeftPhotoUrl?: string | null }).dispatchLeftPhotoUrl)}
-                    disabled={uploadingWaybillId === route.routeId || leavingId === route.routeId || !waybillUrl}
+                    disabled={uploadingWaybillId === route.routeId || leavingId === route.routeId}
+                    gated={!waybillUrl}
+                    reasonId={`left-dispatch-reason-${route.routeId}`}
                     title={!waybillUrl ? 'Attach the waybill photo first' : route.dispatchedLeftAt ? 'Already left dispatch. Tap again to update' : 'Record departure with waybill photo'}
-                    aria-disabled={!waybillUrl}
                     className={`rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-60 ${waybillUrl ? 'bg-[#0e7a70] text-white hover:bg-[#0b625a]' : 'border border-slate-200 bg-white text-slate-400'}`}
                   >
                     {leavingId === route.routeId ? 'Recording…' : route.dispatchedLeftAt ? 'Left dispatch (update)' : 'Left dispatch'}
-                  </button>
+                  </GatedButton>
                 </div>
                 {!waybillUrl && (
-                  <p className="mt-2 text-xs text-amber-700">Attach waybill photo first. Left dispatch stays disabled until the photo is attached.</p>
+                  <p id={`left-dispatch-reason-${route.routeId}`} className="mt-2 text-xs text-amber-700">Attach waybill photo first. Left dispatch stays disabled until the photo is attached.</p>
                 )}
                 {waybillUrl && (
                     <a href={waybillUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs font-medium text-blue-700 hover:underline dark:text-blue-400">
@@ -608,15 +610,16 @@ export default function DriverHome() {
                           onChange={(e) => setNotes((n) => ({ ...n, [s.stopId]: e.target.value }))}
                         />
                         <div className="mt-2 flex flex-wrap gap-2">
-                          <button
+                          <GatedButton
                             onClick={() => markDelivered(s)}
-                            disabled={isSubmitting || !receipts[s.stopId]}
+                            disabled={isSubmitting}
+                            gated={!receipts[s.stopId]}
+                            reasonId={`deliver-reason-${s.stopId}`}
                             title={!receipts[s.stopId] ? 'Attach the receipt photo first' : 'Mark this stop delivered'}
-                            aria-disabled={!receipts[s.stopId]}
                             className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-60"
                           >
                             <Icons.Check className="h-3.5 w-3.5" />Mark Delivered
-                          </button>
+                          </GatedButton>
                           <button
                             onClick={() => { setFailFor(failFor === s.stopId ? '' : s.stopId); setFailReason(''); }}
                             className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50"
@@ -625,7 +628,7 @@ export default function DriverHome() {
                           </button>
                         </div>
                         {!receipts[s.stopId] && (
-                          <p className="mt-1 text-xs text-amber-700">Attach receipt photo first. Delivered stays disabled until the photo is attached.</p>
+                          <p id={`deliver-reason-${s.stopId}`} className="mt-1 text-xs text-amber-700">Attach receipt photo first. Delivered stays disabled until the photo is attached.</p>
                         )}
                         {failFor === s.stopId && (
                           <div className="mt-2 space-y-2">

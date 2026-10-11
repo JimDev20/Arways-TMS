@@ -6,6 +6,7 @@ import { RolePermissionsMatrix } from '@/components/RolePermissionsMatrix';
 import { useTheme } from '@/lib/theme';
 import { useStoredString } from '@/lib/storage';
 import { Icons } from '@/lib/createLucideIcon';
+import { GatedButton } from '@/components/GatedButton';
 
 const DEFAULTS = {
   company: 'Arways Trucking',
@@ -131,12 +132,12 @@ export default function OwnerSettingsPage() {
               ['Email (SMTP)', 'Coming soon', false, true],
               ['SMS Gateway', 'Coming soon', false, true],
               ['Webhook', 'Coming soon', false, true],
-            ].map(([name, status, ok, soon]) => (
+            ].map(([name, status, ok, soon], i) => (
               <li key={name as string} className="flex items-center justify-between gap-3">
-                <span>{name} {soon === true && <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">Coming soon</span>}</span>
+                <span>{name} {soon === true && <span id={`integration-reason-${i}`} className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">Coming soon</span>}</span>
                 <span className="flex items-center gap-2">
                   <span className={`inline-flex items-center gap-1.5 ${ok ? 'text-green-700' : 'text-slate-400'}`}>{ok === true && <Icons.CheckCircle className="h-3.5 w-3.5" />}{status}</span>
-                  <button className="btn-ghost px-3 py-1 text-xs" disabled={soon === true} title={soon === true ? 'Not built yet' : 'Configure'}>Configure</button>
+                  <GatedButton className="btn-ghost px-3 py-1 text-xs" gated={soon === true} reasonId={`integration-reason-${i}`} title={soon === true ? 'Not built yet' : 'Configure'}>Configure</GatedButton>
                 </span>
               </li>
             ))}
