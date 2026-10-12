@@ -11,6 +11,7 @@ export const USER_STATUSES = ['Active', 'Inactive'] as const;
 export const TRUCK_TYPES = ['Refrigerated', 'Dry'] as const;
 export const TRUCK_STATUSES = ['Available', 'In Use', 'Maintenance'] as const;
 export const ORDER_PRIORITIES = ['Normal', 'Urgent', 'Rush'] as const;
+export const FEEDBACK_CATEGORIES = ['Problem', 'Suggestion', 'Question'] as const;
 
 // Philippines bounds (same rule as client signup: lat 4–21, lng 116–127).
 const LAT_MIN = 4;

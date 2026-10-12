@@ -138,6 +138,17 @@ export const auditLogs = pgTable('audit_logs', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
+export const feedback = pgTable('feedback', {
+  feedbackId: uuid('feedback_id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull(),
+  role: text('role').notNull(),
+  category: text('category').notNull(),
+  screen: text('screen'),
+  message: text('message').notNull(),
+  status: text('status').notNull().default('New'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+});
+
 export const statusEvents = pgTable('status_events', {
   eventId: uuid('event_id').primaryKey().defaultRandom(),
   entity: text('entity').notNull(),

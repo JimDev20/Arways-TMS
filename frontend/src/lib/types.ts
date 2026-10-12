@@ -376,6 +376,21 @@ export function gmapsUrl(lat: number, lon: number): string {
   return `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
 }
 
+/** In-app feedback report (POST /feedback). Mirrors backend FEEDBACK_CATEGORIES. */
+export const FEEDBACK_CATEGORIES = ['Problem', 'Suggestion', 'Question'] as const;
+export type FeedbackCategory = (typeof FEEDBACK_CATEGORIES)[number];
+
+export interface FeedbackItem {
+  feedbackId: string;
+  userId: string;
+  role: string;
+  category: string;
+  screen: string | null;
+  message: string;
+  status: string;
+  createdAt: string | null;
+}
+
 /** Paginated list envelope (ARWAYS-UI-IMPROVEMENTS §3.7/UI-11). */
 export interface Page<T> {
   items: T[];
