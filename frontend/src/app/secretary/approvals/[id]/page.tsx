@@ -39,7 +39,7 @@ export default function ApprovalDetailPage({ params }: { params: Promise<{ id: s
         setPriority((d.order as { priority?: OrderPriority } | undefined)?.priority ?? 'Normal');
         setNotes(d.order?.specialInstructions ?? '');
       })
-      .catch((e: unknown) => setErr(errorMessage(e, 'Could not load the order.')));
+      .catch((e: unknown) => setErr(errorMessage(e, 'Could not load the order. Check your connection and try again.')));
   }, [id]);
   useEffect(() => {
     api<OrderDetail>(`/orders/${id}`)
@@ -51,7 +51,7 @@ export default function ApprovalDetailPage({ params }: { params: Promise<{ id: s
         setPriority((d.order as { priority?: OrderPriority } | undefined)?.priority ?? 'Normal');
         setNotes(d.order?.specialInstructions ?? '');
       })
-      .catch((e: unknown) => setErr(errorMessage(e, 'Could not load the order.')));
+      .catch((e: unknown) => setErr(errorMessage(e, 'Could not load the order. Check your connection and try again.')));
   }, [id]);
 
   async function approve() {

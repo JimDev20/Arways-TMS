@@ -41,7 +41,7 @@ export default function OwnerAuditPage() {
       api<RouteFull[]>('/routes').then(setRoutes),
       api<NotificationItem[]>('/notifications').then(setNotifs),
     ]).catch((e: unknown) => {
-      setErr(errorMessage(e, 'Could not load audit data.'));
+      setErr(errorMessage(e, 'Could not load audit data. Check your connection and try again.'));
     });
   }, []);
   useEffect(() => {

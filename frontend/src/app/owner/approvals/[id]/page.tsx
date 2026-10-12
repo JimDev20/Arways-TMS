@@ -34,7 +34,7 @@ export default function OwnerApprovalDetailPage({ params }: { params: Promise<{ 
         setTime(d.order?.scheduledTime ?? '');
         setNotes(d.order?.specialInstructions ?? '');
       })
-      .catch((e: unknown) => setErr(errorMessage(e, 'Could not load the order.')));
+      .catch((e: unknown) => setErr(errorMessage(e, 'Could not load the order. Check your connection and try again.')));
   }, [id]);
   useEffect(() => {
     api<OrderDetail>(`/orders/${id}`)
@@ -45,7 +45,7 @@ export default function OwnerApprovalDetailPage({ params }: { params: Promise<{ 
         setTime(d.order?.scheduledTime ?? '');
         setNotes(d.order?.specialInstructions ?? '');
       })
-      .catch((e: unknown) => setErr(errorMessage(e, 'Could not load the order.')));
+      .catch((e: unknown) => setErr(errorMessage(e, 'Could not load the order. Check your connection and try again.')));
   }, [id]);
 
   async function approve() {

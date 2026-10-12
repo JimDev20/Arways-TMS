@@ -18,7 +18,7 @@ export default function DriverStopsPage() {
   useEffect(() => {
     api<DriverRoute[]>('/routes/mine')
       .then((r) => { setRoutes(r); setErr(''); })
-      .catch((e: unknown) => setErr(errorMessage(e, 'Could not load stops.')));
+      .catch((e: unknown) => setErr(errorMessage(e, 'Could not load stops. Check your connection and try again.')));
   }, []);
 
   const stops = routes.flatMap((r) =>

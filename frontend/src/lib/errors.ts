@@ -60,7 +60,8 @@ function explainConstraint(property: string, constraint: string): string {
   const field = fieldLabel(property);
   const c = constraint.toLowerCase();
   if (c.includes('must be an email')) {
-    return `${field} is invalid. It must look like name@example.com. Check the spelling.`;
+    const lower = field.charAt(0).toLowerCase() + field.slice(1);
+    return `Enter ${lower} like name@example.com.`;
   }
   const minMatch = c.match(/longer than or equal to (\d+)/);
   if (minMatch) {
@@ -97,9 +98,10 @@ function splitConstraint(item: string): [string, string] {
 const EXACT: Record<string, string> = {
   'Invalid credentials':
     // Deliberately generic per the contract above: never split into
-    // "email not found" vs "wrong password" (account enumeration). Instead
-    // this names every check the user can run themselves.
-    'Those details did not match an account together. Check four things: the email spelling (name@example.com, no extra spaces), Caps Lock (passwords are case-sensitive), that you are using the newest password, and the password length (at least 10 characters for newer passwords, 8 for older ones). Then try again.',
+    // "email not found" vs "wrong password" (account enumeration). Short
+    // and scannable: what happened + the checks + the reset path (Owner-
+    // assisted; there is no self-serve email reset).
+    'We could not sign you in with those details. Check the email spelling and Caps Lock, then try again. If you need a password reset, contact an Owner.',
   'Missing token': 'You are not logged in. Log in first.',
   'Invalid or expired token':
     'Your login expired. Log out and log in again.',
@@ -263,13 +265,13 @@ export function friendlyErrorMessage(err: unknown): string {
   if (/^Request failed \(\d+\)/.test(raw)) {
     return `${raw} If this keeps happening, contact the administrator.`;
   }
-  return raw || 'Something went wrong on our side. Try again in a few minutes.';
+  return raw || 'We could not complete that. Check your connection and try again.';
 }
 
 function extractMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
   if (typeof err === 'string') return err;
-  return 'Something went wrong on our side. Try again in a few minutes.';
+  return 'We could not complete that. Check your connection and try again.';
 }
 
 /**

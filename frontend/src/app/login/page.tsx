@@ -73,7 +73,7 @@ export default function LoginPage() {
       const body = (await res.json().catch(() => ({}))) as Partial<LoginResponse> & { message?: unknown };
       if (!res.ok) {
         const m = body.message;
-        throw new Error(friendlyErrorMessage(Array.isArray(m) ? m.join(' ') : (m ?? 'Login failed. Check your email spelling and password, then try again.')));
+        throw new Error(friendlyErrorMessage(Array.isArray(m) ? m.join(' ') : (m ?? 'We could not sign you in with those details. Check the email spelling and Caps Lock, then try again. If you need a password reset, contact an Owner.')));
       }
       if (!body.access_token || !body.user) {
         throw new Error('Login failed. The server reply was incomplete. Check your connection and try again.');

@@ -21,12 +21,12 @@ export default function OwnerRoutesPage() {
   const [loading, setLoading] = useState(true);
   const load = useCallback(() => {
     api<RouteFull[]>('/routes').then(setRoutes).catch((e: unknown) => {
-      setErr(errorMessage(e, 'Could not load routes.'));
+      setErr(errorMessage(e, 'Could not load routes. Check your connection and try again.'));
     });
   }, []);
   useEffect(() => {
     api<RouteFull[]>('/routes').then(setRoutes).catch((e: unknown) => {
-      setErr(errorMessage(e, 'Could not load routes.'));
+      setErr(errorMessage(e, 'Could not load routes. Check your connection and try again.'));
     }).finally(() => setLoading(false));
   }, []);
   useRealtime('orders', load);

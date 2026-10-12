@@ -47,7 +47,7 @@ export default function OwnerOrdersPage() {
         setTotal(r.total);
       })
       .catch((e: unknown) => {
-        setListErr(errorMessage(e, 'Could not load orders.'));
+        setListErr(errorMessage(e, 'Could not load orders. Check your connection and try again.'));
       })
       .finally(() => setLoading(false));
   }, []);
@@ -85,7 +85,7 @@ export default function OwnerOrdersPage() {
     try {
       setDetail(await api<OrderDetail>(`/orders/${id}`));
     } catch (e: unknown) {
-      setDetail({ error: errorMessage(e, 'Could not load details.') });
+      setDetail({ error: errorMessage(e, 'Could not load details. Check your connection and try again.') });
     }
   }
 
@@ -94,7 +94,7 @@ export default function OwnerOrdersPage() {
     try {
       setDetail(await api<OrderDetail>(`/orders/${id}`));
     } catch (e: unknown) {
-      setDetail({ error: errorMessage(e, 'Could not load details.') });
+      setDetail({ error: errorMessage(e, 'Could not load details. Check your connection and try again.') });
     }
   }
 

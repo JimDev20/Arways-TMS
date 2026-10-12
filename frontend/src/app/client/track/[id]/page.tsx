@@ -26,7 +26,7 @@ export default function TrackPage({ params }: { params: Promise<{ id: string }> 
       setDetail(d);
       setErr('');
     }).catch((e: unknown) => {
-      setErr(errorMessage(e, 'Could not load the order.'));
+      setErr(errorMessage(e, 'Could not load the order. Check your connection and try again.'));
     });
   }, [id]);
   useEffect(() => {
@@ -34,7 +34,7 @@ export default function TrackPage({ params }: { params: Promise<{ id: string }> 
       setDetail(d);
       setErr('');
     }).catch((e: unknown) => {
-      setErr(errorMessage(e, 'Could not load the order.'));
+      setErr(errorMessage(e, 'Could not load the order. Check your connection and try again.'));
     });
   }, [id]);
   useRealtime('stops', load);
