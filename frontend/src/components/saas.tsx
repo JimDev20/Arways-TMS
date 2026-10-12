@@ -228,7 +228,7 @@ export function DeliveryTrend({ orders }: { orders: Order[] }) {
   const max = Math.max(1, ...days.map((d) => d.count));
   return (
     <div>
-      <div className="flex h-32 items-end gap-2" role="img" aria-label="Deliveries over the last 7 days">
+      <div className="flex h-32 items-end gap-2" role="img" aria-label="Orders created over the last 7 days">
         {days.map((d, i) => (
           <div key={i} className="flex flex-1 flex-col items-center gap-1">
             <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{d.count > 0 ? d.count : ''}</span>
@@ -308,11 +308,13 @@ export function SystemHealth() {
       live = false;
     };
   }, []);
-  const rows = [
+  // Storage and Maps are not probed here: never report them Operational.
+  // They render as Not checked (gray) so dispatchers are not misled.
+  const rows: { label: string; state: 'ok' | 'down' | 'checking' | 'unknown' }[] = [
     { label: 'Database', state: db },
     { label: 'API', state: apiState },
-    { label: 'Storage', state: 'ok' as const },
-    { label: 'Maps', state: 'ok' as const },
+    { label: 'Storage', state: 'unknown' },
+    { label: 'Maps', state: 'unknown' },
   ];
   return (
     <ul className="space-y-2 text-sm">
@@ -320,9 +322,9 @@ export function SystemHealth() {
         <li key={r.label} className="flex items-center justify-between">
           <span className="text-slate-600 dark:text-slate-300">{r.label}</span>
           <span className="flex items-center gap-2">
-            <StatusDot color={r.state === 'ok' ? 'green' : r.state === 'checking' ? 'gray' : 'red'} />
-            <span className={r.state === 'ok' ? 'font-medium text-green-700 dark:text-green-400' : r.state === 'checking' ? 'text-slate-400' : 'font-medium text-red-600'}>
-              {r.state === 'ok' ? 'Operational' : r.state === 'checking' ? 'Checking…' : 'Unreachable'}
+            <StatusDot color={r.state === 'ok' ? 'green' : r.state === 'down' ? 'red' : 'gray'} />
+            <span className={r.state === 'ok' ? 'font-medium text-green-700 dark:text-green-400' : r.state === 'down' ? 'font-medium text-red-600' : 'text-slate-400'}>
+              {r.state === 'ok' ? 'Operational' : r.state === 'down' ? 'Unreachable' : r.state === 'checking' ? 'Checking…' : 'Not checked'}
             </span>
           </span>
         </li>
@@ -605,7 +607,7 @@ export function GlobalSearch({ docs, base, placeholder }: { docs: SearchDocs; ba
   }, [q, docs, base]);
 
   return (
-    <div className="relative hidden md:block">
+    <div className="relative">
       <SearchField
         value={q}
         onChange={(v) => { setQ(v); setOpen(true); }}
@@ -614,7 +616,7 @@ export function GlobalSearch({ docs, base, placeholder }: { docs: SearchDocs; ba
         placeholder={placeholder}
         label="Global search"
         withIcon={false}
-        inputClassName="w-52 rounded-lg border border-slate-200 bg-slate-50 pl-3 pr-8 py-1.5 text-sm focus:border-blue-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 lg:w-64"
+        inputClassName="w-36 rounded-lg border border-slate-200 bg-slate-50 pl-3 pr-8 py-1.5 text-sm focus:border-blue-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 sm:w-52 lg:w-64"
       />
       {open && q.trim().length === 1 && (
         <p role="status" className="absolute left-0 right-0 z-30 mt-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-500 shadow-lg dark:border-slate-700 dark:bg-slate-900">Keep typing. Search starts at 2 characters.</p>

@@ -190,10 +190,10 @@ export default function LoginPage() {
               </a>
               <span className="mx-2 text-slate-300" aria-hidden>|</span>
               <a href="/onboarding" className="font-medium text-blue-700 hover:underline dark:text-blue-400">
-                Request access
+                Set up this device
               </a>
             </p>
-            <p className="text-center text-xs text-slate-400">Accounts are invite-only. Clients can request access; ARWAYS approves and sends an invite link.</p>
+            <p className="text-center text-xs text-slate-400">Accounts are invite-only. This setup saves preferences on this device only and does not create an account; ARWAYS sends an invite link after approval.</p>
           </form>
         </div>
         <div className="mt-6 text-center text-xs text-slate-400">

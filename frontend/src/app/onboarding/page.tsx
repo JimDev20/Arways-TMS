@@ -60,6 +60,7 @@ export default function OnboardingPage() {
     setStep((s) => Math.min(s + 1, 2));
   }
 
+  const [savedNoSession, setSavedNoSession] = useState(false);
   function finish() {
     try {
       localStorage.setItem('arways_onboarded', '1');
@@ -78,7 +79,9 @@ export default function OnboardingPage() {
     } catch {
       /* storage unavailable: still continue */
     }
-    router.replace('/login');
+    // No session: this setup does not create an account. Stay here and say
+    // so explicitly instead of bouncing back to login as if access was sent.
+    setSavedNoSession(true);
   }
 
   const pct = step === 0 ? 33 : step === 1 ? 66 : 100;
@@ -139,6 +142,11 @@ export default function OnboardingPage() {
             <div className="py-4 text-center">
               <Icons.CheckCircle className="mx-auto h-10 w-10 text-green-600" />
               <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">You are all set{fullName ? `, ${fullName.split(' ')[0]}` : ''}. Your workspace is ready.</p>
+              {savedNoSession && (
+                <p role="status" className="mx-auto mt-3 max-w-sm rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  Preferences saved on this device. You still need an invite from ARWAYS to log in — no access request was sent.
+                </p>
+              )}
             </div>
           )}
 
@@ -150,8 +158,10 @@ export default function OnboardingPage() {
             )}
             {step < 2 ? (
               <button onClick={next} className="btn-primary flex-1">Next</button>
+            ) : savedNoSession ? (
+              <Link href="/login" className="btn-primary flex-1 text-center">Back to login</Link>
             ) : (
-              <button onClick={finish} className="btn-primary flex-1">Go to dashboard</button>
+              <button onClick={finish} className="btn-primary flex-1">Save and continue</button>
             )}
           </div>
           <div className="mt-4" aria-hidden>

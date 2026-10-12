@@ -14,13 +14,15 @@ function todayStr() { return new Date().toISOString().slice(0, 10); }
 export default function SecretaryDashboard() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [routes, setRoutes] = useState<RouteFull[]>([]);
+  const [loadError, setLoadError] = useState(false);
   const load = useCallback(() => {
-    api<Order[]>('/orders').then(setOrders).catch(() => {});
-    api<RouteFull[]>('/routes').then(setRoutes).catch(() => {});
+    setLoadError(false);
+    api<Order[]>('/orders').then((o) => { setOrders(o); }).catch(() => setLoadError(true));
+    api<RouteFull[]>('/routes').then((r) => { setRoutes(r); }).catch(() => setLoadError(true));
   }, []);
   useEffect(() => {
-    api<Order[]>('/orders').then(setOrders).catch(() => {});
-    api<RouteFull[]>('/routes').then(setRoutes).catch(() => {});
+    api<Order[]>('/orders').then(setOrders).catch(() => setLoadError(true));
+    api<RouteFull[]>('/routes').then(setRoutes).catch(() => setLoadError(true));
   }, []);
   useRealtime('orders', load);
   useRealtime('stops', load);
@@ -36,6 +38,12 @@ export default function SecretaryDashboard() {
 
   return (
     <Shell role="Secretary" title="Dashboard">
+      {loadError && (
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4" role="alert">
+          <p className="text-sm font-medium text-amber-800">Dashboard data could not be loaded. Counts below may be incomplete — this is not an empty operation.</p>
+          <button onClick={load} className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-800">Retry</button>
+        </div>
+      )}
       {failedStops.length > 0 && (
         <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4" role="alert">
           <p className="text-sm font-semibold text-red-700">Needs attention: {failedStops.length} failed stop{failedStops.length === 1 ? '' : 's'}</p>
