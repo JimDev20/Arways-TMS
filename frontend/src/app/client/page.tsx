@@ -15,9 +15,11 @@ const MapView = dynamic(() => import('@/components/MapView').then((m) => m.MapVi
 export default function ClientDashboard() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [pins, setPins] = useState<MapPin[]>([]);
+  const [loadError, setLoadError] = useState(false);
   const session = useSession();
   const load = useCallback(() => {
     api<Order[]>('/orders').then(async (list) => {
+      setLoadError(false);
       setOrders(list);
       // Collect stop pins across own orders for the delivery map.
       const all: MapPin[] = [];
@@ -31,7 +33,7 @@ export default function ClientDashboard() {
         } catch { /* one bad order must not break the map */ }
       }));
       setPins(all);
-    }).catch(() => {});
+    }).catch(() => setLoadError(true));
   }, []);
   useEffect(load, [load]);
   useRealtime('orders', load);
@@ -49,15 +51,14 @@ export default function ClientDashboard() {
           Welcome{firstName ? `, ${firstName}` : ''}
         </p>
       )}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="Total Orders" value={orders.length} tone="blue" />
-        <Stat label="Pending" value={pending} tone="amber" />
-        <Stat label="In Transit" value={transit} tone="blue" />
-        <Stat label="Delivered" value={delivered} tone="green" />
-      </div>
-
+      {loadError && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4" role="alert">
+          <p className="text-sm font-medium text-amber-800">Your orders could not be loaded. Check your connection — this is not an empty list.</p>
+          <button onClick={load} className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-800">Retry</button>
+        </div>
+      )}
       <Link href="/client/new"
-        className="mt-6 flex items-center justify-center gap-2 rounded-xl bg-[#0e7a70] py-4 text-base font-semibold text-white shadow-md shadow-[#0e7a70]/20 transition-all hover:bg-[#0b625a]">
+        className="flex items-center justify-center gap-2 rounded-xl bg-[#0e7a70] py-4 text-base font-semibold text-white shadow-md shadow-[#0e7a70]/20 transition-all hover:bg-[#0b625a]">
         <Icons.Plus className="h-5 w-5" />
         Create New Order
       </Link>
@@ -70,16 +71,28 @@ export default function ClientDashboard() {
               <Icons.Package className="h-5 w-5 text-slate-400" />
               <h2 className="text-lg font-semibold text-slate-900">My Orders</h2>
             </div>
-            <Link
-              href="/client/new"
-              className="inline-flex items-center gap-2 rounded-lg bg-[#0e7a70] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#0b625a]"
-            >
-              <Icons.Plus className="h-4 w-4" />
-              New Order
-            </Link>
+            <span className="text-xs text-slate-400">{orders.length} total</span>
           </div>
         </div>
-        <div className="overflow-x-auto">
+        {/* Mobile cards: concise list instead of a wide table */}
+        <div className="space-y-2 p-4 sm:hidden">
+          {orders.map((o) => (
+            <div key={o.orderId} className="rounded-lg border border-slate-200 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-medium text-slate-900">{o.orderReference}</span>
+                <StatusPill status={o.status} />
+              </div>
+              <div className="mt-1 flex items-center justify-between">
+                <span className="text-xs text-slate-500">{o.scheduledDate}</span>
+                <Link href={`/client/track/${o.orderId}`} className="inline-flex items-center gap-1 text-xs font-medium text-[#0e7a70] hover:underline">
+                  Track <Icons.ChevronRight className="h-3 w-3" />
+                </Link>
+              </div>
+            </div>
+          ))}
+          {orders.length === 0 && <p className="py-8 text-center text-sm text-slate-400">No orders yet. Create your first one above.</p>}
+        </div>
+        <div className="hidden overflow-x-auto sm:block">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-slate-500">
               <tr>
@@ -119,6 +132,14 @@ export default function ClientDashboard() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Compact summary: sits below the order list, map last */}
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Stat label="Total Orders" value={orders.length} tone="blue" />
+        <Stat label="Pending" value={pending} tone="amber" />
+        <Stat label="In Transit" value={transit} tone="blue" />
+        <Stat label="Delivered" value={delivered} tone="green" />
       </div>
 
       {/* Delivery map (own orders only) */}

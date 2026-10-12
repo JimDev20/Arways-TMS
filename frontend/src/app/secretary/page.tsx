@@ -45,13 +45,6 @@ export default function SecretaryDashboard() {
           <Link href="/secretary/monitoring?filter=attention" className="mt-2 inline-block text-sm font-medium text-red-700 hover:underline">Open monitoring →</Link>
         </div>
       )}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="Pending Approval" value={pending.length} tone="amber" />
-        <Stat label="Approved Today" value={orders.filter((o) => o.status === 'Approved' && isToday(o.createdAt)).length} tone="blue" />
-        <Stat label="In Transit" value={orders.filter((o) => o.status === 'In Transit').length} tone="blue" />
-        <Stat label="Delivered Today" value={orders.filter((o) => o.status === 'Completed' && isToday(o.updatedAt ?? o.createdAt)).length} tone="green" />
-      </div>
-
       {/* Pending Approvals */}
       <div className="mt-6 rounded-xl bg-white shadow-sm">
         <div className="border-b border-slate-200 px-6 py-4">
@@ -98,6 +91,14 @@ export default function SecretaryDashboard() {
             ))}
           </ul>
         )}
+      </div>
+
+      {/* Compact KPI row: kept below the work queue so approvals come first */}
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Stat label="Pending Approval" value={pending.length} tone="amber" />
+        <Stat label="Approved Today" value={orders.filter((o) => o.status === 'Approved' && isToday(o.createdAt)).length} tone="blue" />
+        <Stat label="In Transit" value={orders.filter((o) => o.status === 'In Transit').length} tone="blue" />
+        <Stat label="Delivered Today" value={orders.filter((o) => o.status === 'Completed' && isToday(o.updatedAt ?? o.createdAt)).length} tone="green" />
       </div>
     </Shell>
   );

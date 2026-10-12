@@ -31,6 +31,7 @@ function telHref(phone: string): string {
 export default function DriverHome() {
   const [routes, setRoutes] = useState<DriverRoute[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string; at: number } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [receipts, setReceipts] = useState<Record<string, string>>({});
@@ -44,14 +45,14 @@ export default function DriverHome() {
   const [clientInfo, setClientInfo] = useState<{ orderId: string; client: OrderDetailClient | null } | null>(null);
   const load = useCallback(() => {
     api<DriverRoute[]>('/routes/mine')
-      .then(setRoutes)
-      .catch(() => {})
+      .then((r) => { setRoutes(r); setLoadFailed(false); })
+      .catch(() => setLoadFailed(true))
       .finally(() => setLoading(false));
   }, []);
   useEffect(() => {
     api<DriverRoute[]>('/routes/mine')
-      .then(setRoutes)
-      .catch(() => {})
+      .then((r) => { setRoutes(r); setLoadFailed(false); })
+      .catch(() => setLoadFailed(true))
       .finally(() => setLoading(false));
   }, []);
   useRealtime('stops', load);
@@ -243,6 +244,14 @@ export default function DriverHome() {
         </div>
       )}
 
+      {/* Load failure is never a silent empty list: explicit retry */}
+      {!loading && loadFailed && routes.length === 0 && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4" role="alert">
+          <p className="text-sm font-medium text-amber-800">Your route could not be loaded. Check your connection — this does not mean you have no deliveries.</p>
+          <button onClick={load} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-amber-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-800">Retry</button>
+        </div>
+      )}
+
       {/* Delivery complete banner */}
       {allDone && (
         <div className="mb-6 rounded-xl bg-green-50 p-6 text-center shadow-sm" role="status">
@@ -283,49 +292,57 @@ export default function DriverHome() {
         </div>
       ) : null}
 
-      {/* Next stop prompt */}
+      {/* Next stop prompt: address + prominent Navigate so the immediate task dominates */}
       {!loading && !allDone && nextStop && (
         <div className="mb-4 rounded-xl border-l-4 border-l-[#0e7a70] bg-white p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Next stop</p>
           <p className="mt-1 truncate text-sm font-medium text-slate-900">
             #{nextStop.stopSequence} {nextStop.locationAddress} ({nextStop.status})
           </p>
+          <a href={navigateHref(nextStop.locationAddress, nextStop.locationCoordinates)} target="_blank" rel="noopener noreferrer"
+            className="mt-2 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#0e7a70] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#0b625a]">
+            <Icons.MapPin className="h-4 w-4" />Navigate to next stop
+          </a>
         </div>
       )}
 
-      {/* Consolidated pickup card (always visible): address + guide + contacts */}
-      {first && firstPickup && (
+      {/* Drop-off summary before the map: the stop list stays above the large map */}
+      {first && (
         <div className="mb-4 rounded-xl bg-white p-5 shadow-sm sm:p-6">
-          <h2 className="mb-1 text-base font-semibold text-slate-900">Pickup: always available</h2>
-          <p className="text-sm font-medium text-slate-900">{firstPickup.locationAddress}</p>
-          {(() => { const c = coordsOf(firstPickup.locationCoordinates); return c ? <p className="mt-1 text-xs text-slate-500">Coordinates: {c.lat.toFixed(4)}, {c.lon.toFixed(4)}</p> : null; })()}
-          {guide && (
-            <dl className="mt-3 grid gap-2 border-t border-slate-100 pt-3 text-sm sm:grid-cols-2">
-              <div><dt className="text-slate-500">Dispatch area</dt><dd className="font-medium">{guide.dispatchAreaAddress}</dd></div>
-              <div><dt className="text-slate-500">Dispatcher</dt><dd className="font-medium">{guide.dispatcherContact ?? guide.phone ?? '-'}</dd></div>
-            </dl>
-          )}
-          {guide?.entranceInstructions && (
-            <p className="mt-2 whitespace-pre-line rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">Entrance: {guide.entranceInstructions}</p>
-          )}
-          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-            <a href={navigateHref(firstPickup.locationAddress, firstPickup.locationCoordinates)} target="_blank" rel="noopener noreferrer"
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-700">
-              <Icons.MapPin className="h-4 w-4" />Navigate to pickup
-            </a>
-            {guide && (
-              <>
-                <a href={telHref(guide.phone)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                  <Icons.Phone className="h-4 w-4" />Call client
-                </a>
-                {(guide.dispatcherContact ?? guide.phone) && (
-                  <a href={telHref(guide.dispatcherContact ?? guide.phone ?? '')} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                    <Icons.Phone className="h-4 w-4" />Call dispatcher
+          <h2 className="mb-3 text-base font-semibold text-slate-900">Drop-off Stores</h2>
+          {isWaiting ? (
+            <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
+              <p className="flex items-center justify-center gap-2 text-sm font-semibold text-slate-900"><Icons.Clock className="h-4 w-4 text-amber-600" />Waiting for stores</p>
+              <p className="mx-auto mt-1 max-w-md text-sm text-slate-600">
+                The client has not yet assigned the drop-off stores for this route. You will receive a notification once stores are added.
+              </p>
+              <div className="mx-auto mt-3 max-w-md rounded-lg bg-white p-3 text-left text-xs text-slate-700">
+                <p className="font-semibold">While waiting:</p>
+                <ul className="mt-1 space-y-1">
+                  <li className="flex items-center gap-2"><Icons.Check className="h-3.5 w-3.5 shrink-0 text-green-600" />Proceed to pickup location</li>
+                  <li className="flex items-center gap-2"><Icons.Check className="h-3.5 w-3.5 shrink-0 text-green-600" />Load the products</li>
+                  <li className="flex items-center gap-2"><Icons.Check className="h-3.5 w-3.5 shrink-0 text-green-600" />Wait for store assignment notification</li>
+                  <li className="flex items-center gap-2"><Icons.Check className="h-3.5 w-3.5 shrink-0 text-green-600" />Once assigned, deliver to each store</li>
+                </ul>
+              </div>
+              <button onClick={load} disabled={isSubmitting}
+                className="mt-4 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60">
+                <Icons.Refresh className="h-4 w-4" />Refresh
+              </button>
+            </div>
+          ) : (
+            <ul className="space-y-2">
+              {firstDropoffs.map((s, i) => (
+                <li key={s.stopId} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+                  <span className="font-medium text-slate-900">{i + 1}. {s.locationAddress}</span>
+                  <a href={navigateHref(s.locationAddress, s.locationCoordinates)} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                    <Icons.MapPin className="h-3.5 w-3.5" />Navigate
                   </a>
-                )}
-              </>
-            )}
-          </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 
@@ -363,43 +380,39 @@ export default function DriverHome() {
         </div>
       )}
 
-      {/* Final wireframe: drop-off waiting vs list summary */}
-      {first && (
-        <div className="mb-6 rounded-xl bg-white p-6 shadow-sm">
-          <h2 className="mb-3 text-base font-semibold text-slate-900">Drop-off Stores</h2>
-          {isWaiting ? (
-            <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
-              <p className="flex items-center justify-center gap-2 text-sm font-semibold text-slate-900"><Icons.Clock className="h-4 w-4 text-amber-600" />Waiting for stores</p>
-              <p className="mx-auto mt-1 max-w-md text-sm text-slate-600">
-                The client has not yet assigned the drop-off stores for this route. You will receive a notification once stores are added.
-              </p>
-              <div className="mx-auto mt-3 max-w-md rounded-lg bg-white p-3 text-left text-xs text-slate-700">
-                <p className="font-semibold">While waiting:</p>
-                <ul className="mt-1 space-y-1">
-                  <li className="flex items-center gap-2"><Icons.Check className="h-3.5 w-3.5 shrink-0 text-green-600" />Proceed to pickup location</li>
-                  <li className="flex items-center gap-2"><Icons.Check className="h-3.5 w-3.5 shrink-0 text-green-600" />Load the products</li>
-                  <li className="flex items-center gap-2"><Icons.Check className="h-3.5 w-3.5 shrink-0 text-green-600" />Wait for store assignment notification</li>
-                  <li className="flex items-center gap-2"><Icons.Check className="h-3.5 w-3.5 shrink-0 text-green-600" />Once assigned, deliver to each store</li>
-                </ul>
-              </div>
-              <button onClick={load} disabled={isSubmitting}
-                className="mt-4 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60">
-                <Icons.Refresh className="h-4 w-4" />Refresh
-              </button>
-            </div>
-          ) : (
-            <ul className="space-y-2">
-              {firstDropoffs.map((s, i) => (
-                <li key={s.stopId} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-                  <span className="font-medium text-slate-900">{i + 1}. {s.locationAddress}</span>
-                  <a href={navigateHref(s.locationAddress, s.locationCoordinates)} target="_blank" rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
-                    <Icons.MapPin className="h-3.5 w-3.5" />Navigate
-                  </a>
-                </li>
-              ))}
-            </ul>
+      {/* Pickup + contacts: reference info below the map, actions stay in the stop list */}
+      {first && firstPickup && (
+        <div className="mb-4 rounded-xl bg-white p-5 shadow-sm sm:p-6">
+          <h2 className="mb-1 text-base font-semibold text-slate-900">Pickup: always available</h2>
+          <p className="text-sm font-medium text-slate-900">{firstPickup.locationAddress}</p>
+          {(() => { const c = coordsOf(firstPickup.locationCoordinates); return c ? <p className="mt-1 text-xs text-slate-500">Coordinates: {c.lat.toFixed(4)}, {c.lon.toFixed(4)}</p> : null; })()}
+          {guide && (
+            <dl className="mt-3 grid gap-2 border-t border-slate-100 pt-3 text-sm sm:grid-cols-2">
+              <div><dt className="text-slate-500">Dispatch area</dt><dd className="font-medium">{guide.dispatchAreaAddress}</dd></div>
+              <div><dt className="text-slate-500">Dispatcher</dt><dd className="font-medium">{guide.dispatcherContact ?? guide.phone ?? '-'}</dd></div>
+            </dl>
           )}
+          {guide?.entranceInstructions && (
+            <p className="mt-2 whitespace-pre-line rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">Entrance: {guide.entranceInstructions}</p>
+          )}
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <a href={navigateHref(firstPickup.locationAddress, firstPickup.locationCoordinates)} target="_blank" rel="noopener noreferrer"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-700">
+              <Icons.MapPin className="h-4 w-4" />Navigate to pickup
+            </a>
+            {guide && (
+              <>
+                <a href={telHref(guide.phone)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                  <Icons.Phone className="h-4 w-4" />Call client
+                </a>
+                {(guide.dispatcherContact ?? guide.phone) && (
+                  <a href={telHref(guide.dispatcherContact ?? guide.phone ?? '')} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                    <Icons.Phone className="h-4 w-4" />Call dispatcher
+                  </a>
+                )}
+              </>
+            )}
+          </div>
         </div>
       )}
 
