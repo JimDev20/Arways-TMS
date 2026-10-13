@@ -43,7 +43,7 @@ export default function ClientOrders() {
         setTotal(r.total);
       })
       .catch((e: unknown) => {
-        setListErr(errorMessage(e, 'Could not load orders.'));
+        setListErr(errorMessage(e, 'Could not load orders. Check your connection and try again.'));
       })
       .finally(() => setLoading(false));
   }, []);

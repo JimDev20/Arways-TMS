@@ -30,7 +30,7 @@ export default function MonitoringPage() {
       setRoutes(r);
       setErr('');
     }).catch((e: unknown) => {
-      setErr(errorMessage(e, 'Could not load routes.'));
+      setErr(errorMessage(e, 'Could not load routes. Check your connection and try again.'));
     });
   }, []);
   useEffect(() => {
@@ -38,7 +38,7 @@ export default function MonitoringPage() {
       setRoutes(r);
       setErr('');
     }).catch((e: unknown) => {
-      setErr(errorMessage(e, 'Could not load routes.'));
+      setErr(errorMessage(e, 'Could not load routes. Check your connection and try again.'));
     }).finally(() => setLoading(false));
   }, []);
   useRealtime('orders', load);

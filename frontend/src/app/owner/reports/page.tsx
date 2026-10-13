@@ -44,7 +44,7 @@ export function Reports({ role }: { role: 'Owner' | 'Secretary' }) {
       setUsers(u);
       setByDriver(bd);
     }).catch((e: unknown) => {
-      setErr(errorMessage(e, 'Could not load report data.'));
+      setErr(errorMessage(e, 'Could not load report data. Check your connection and try again.'));
     }).finally(() => { setLoading(false); setFirstLoad(false); });
   }, [from, to, role]);
   useEffect(() => {
@@ -63,7 +63,7 @@ export function Reports({ role }: { role: 'Owner' | 'Secretary' }) {
       setUsers(u);
       setByDriver(bd);
     }).catch((e: unknown) => {
-      setErr(errorMessage(e, 'Could not load report data.'));
+      setErr(errorMessage(e, 'Could not load report data. Check your connection and try again.'));
     }).finally(() => { setLoading(false); setFirstLoad(false); });
   }, [from, to, role]);
 

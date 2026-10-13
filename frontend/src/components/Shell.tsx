@@ -221,13 +221,15 @@ export function Shell({ role, title, children }: { role: Role; title: string; ch
         {/* Right column: content + footer */}
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
-          {/* Mobile Navigation */}
+          {/* Mobile Navigation: single pattern (top scroll row). The duplicate
+              bottom list was removed so links are not repeated on small screens. */}
           <nav aria-label="Portal navigation (mobile)" className="lg:hidden">
             <div className="flex overflow-x-auto gap-2 pb-2">
               {NAV[role].flatMap((g) => g.links).map((n) => (
                 <Link
                   key={n.href}
                   href={n.href}
+                  aria-current={pathname === n.href ? 'page' : undefined}
                   className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium ${
                     pathname === n.href
                       ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
@@ -244,19 +246,6 @@ export function Shell({ role, title, children }: { role: Role; title: string; ch
           <main className="min-w-0 flex-1">
             <h1 className="mb-6 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">{title}</h1>
             {children}
-
-            {/* Mobile Navigation (Bottom) */}
-            <nav aria-label="Portal navigation (mobile bottom)" className="mt-8 flex flex-wrap gap-2 lg:hidden">
-              {NAV[role].flatMap((g) => g.links).map((n) => (
-                <Link key={n.href} href={n.href} className={`rounded-lg px-4 py-2 text-sm font-medium ${
-                  pathname === n.href
-                    ? 'bg-[#0e7a70] text-white'
-                    : 'bg-white text-slate-600 ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700'
-                }`}>
-                  {n.label}
-                </Link>
-              ))}
-            </nav>
           </main>
         </div>
 

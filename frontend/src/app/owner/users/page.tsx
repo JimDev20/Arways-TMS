@@ -59,7 +59,7 @@ export default function UsersPage() {
         setTotal(r.total);
       })
       .catch((e: unknown) => {
-        setListErr(errorMessage(e, 'Could not load users.'));
+        setListErr(errorMessage(e, 'Could not load users. Check your connection and try again.'));
       })
       .finally(() => setLoading(false));
   }, []);

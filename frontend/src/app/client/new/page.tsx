@@ -220,8 +220,9 @@ export default function NewOrderPage() {
               {/* When: reference + schedule + priority */}
               <div className="grid gap-4 rounded-lg border border-slate-200 p-5 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-1.5">
-                  <label className="block text-sm font-medium text-slate-700">Order Reference *</label>
+                  <label htmlFor="order-ref" className="block text-sm font-medium text-slate-700">Order Reference *</label>
                   <input
+                    id="order-ref"
                     className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
                     value={ref}
                     onChange={(e) => setRef(e.target.value)}
@@ -229,8 +230,9 @@ export default function NewOrderPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="block text-sm font-medium text-slate-700">Scheduled Date *</label>
+                  <label htmlFor="order-date" className="block text-sm font-medium text-slate-700">Scheduled Date *</label>
                   <input
+                    id="order-date"
                     type="date"
                     className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
                     value={date}
@@ -239,8 +241,9 @@ export default function NewOrderPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="block text-sm font-medium text-slate-700">Scheduled Time *</label>
+                  <label htmlFor="order-time" className="block text-sm font-medium text-slate-700">Scheduled Time *</label>
                   <input
+                    id="order-time"
                     type="time"
                     className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
                     value={time}
@@ -249,12 +252,12 @@ export default function NewOrderPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="block text-sm font-medium text-slate-700">Priority</label>
+                  <label htmlFor="order-priority" className="block text-sm font-medium text-slate-700">Priority</label>
                   <select
+                    id="order-priority"
                     className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
                     value={priority}
                     onChange={(e) => setPriority(e.target.value as OrderPriority)}
-                    aria-label="Order priority"
                   >
                     <option value="Normal">Normal</option>
                     <option value="Urgent">Urgent</option>
@@ -309,8 +312,9 @@ export default function NewOrderPage() {
                     </button>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="block text-sm font-medium text-slate-700">Drop-off Address</label>
+                    <label htmlFor={`dropoff-addr-${d.id}`} className="block text-sm font-medium text-slate-700">Drop-off Address</label>
                     <input
+                      id={`dropoff-addr-${d.id}`}
                       className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
                       value={d.addr}
                       onChange={(e) => setDrops(drops.map((x) => (x.id === d.id ? { ...x, addr: e.target.value } : x)))}
@@ -381,8 +385,9 @@ export default function NewOrderPage() {
 
               {/* Notes */}
               <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-slate-700">Special Instructions (optional)</label>
+                <label htmlFor="order-notes" className="block text-sm font-medium text-slate-700">Special Instructions (optional)</label>
                 <textarea
+                  id="order-notes"
                   className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70]"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}

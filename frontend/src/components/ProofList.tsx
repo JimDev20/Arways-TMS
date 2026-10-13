@@ -17,7 +17,7 @@ export function ProofList() {
     setLoading(true);
     setErr('');
     api<ProofItem[]>('/proof').then(setItems).catch((e: unknown) => {
-      setErr(errorMessage(e, 'Could not load proof records.'));
+      setErr(errorMessage(e, 'Could not load proof records. Check your connection and try again.'));
     }).finally(() => setLoading(false));
   }, [retryKey]);
 

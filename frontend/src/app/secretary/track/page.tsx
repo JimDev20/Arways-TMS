@@ -21,7 +21,7 @@ export default function SecretaryTrackListPage() {
       .then((o) => { setOrders(o); setDenied(false); setLoadError(''); })
       .catch((e: unknown) => {
         if (apiStatus(e) === 403) setDenied(true);
-        else setLoadError(errorMessage(e, 'Could not load orders.'));
+        else setLoadError(errorMessage(e, 'Could not load orders. Check your connection and try again.'));
       })
       .finally(() => setLoading(false));
   }

@@ -26,13 +26,17 @@ export default function OwnerDashboard() {
   const [routes, setRoutes] = useState<RouteFull[]>([]);
   const [users, setUsers] = useState<UserRow[]>([]);
   const [storage, setStorage] = useState<StorageSummary | null>(null);
+  const [loadError, setLoadError] = useState(false);
   // Roadmap #15 / UX #15: map filter actually filters (was a no-op button).
   const [mapFilter, setMapFilter] = useState<'all' | 'active'>('all');
   const load = useCallback(() => {
-    api<Order[]>('/orders').then(setOrders).catch(() => {});
-    api<RouteFull[]>('/routes').then(setRoutes).catch(() => {});
-    api<UserRow[]>('/users').then(setUsers).catch(() => {});
-    api<StorageSummary>('/reports/storage').then(setStorage).catch(() => {});
+    setLoadError(false);
+    let failed = false;
+    api<Order[]>('/orders').then(setOrders).catch(() => { failed = true; setLoadError(true); });
+    api<RouteFull[]>('/routes').then(setRoutes).catch(() => { failed = true; setLoadError(true); });
+    api<UserRow[]>('/users').then(setUsers).catch(() => { failed = true; setLoadError(true); });
+    api<StorageSummary>('/reports/storage').then(setStorage).catch(() => { failed = true; setLoadError(true); });
+    void failed;
   }, []);
   useEffect(() => {
     let live = true;
@@ -47,9 +51,11 @@ export default function OwnerDashboard() {
           setOrders(o);
           setRoutes(r);
           setUsers(u);
+          setLoadError(false);
         }
       } catch {
-        /* dashboard stays empty: realtime will fill in */
+        // Never present a failed fetch as an empty operation.
+        if (live) setLoadError(true);
       }
     })();
     return () => {
@@ -91,6 +97,12 @@ export default function OwnerDashboard() {
     <Shell role="Owner" title="Owner Dashboard">
       <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">{new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</p>
 
+      {loadError && (
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4" role="alert">
+          <p className="text-sm font-medium text-amber-800">Dashboard data could not be loaded. Counts below may be incomplete — this is not an empty operation.</p>
+          <button onClick={load} className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-800">Retry</button>
+        </div>
+      )}
       {failedStops.length > 0 && (
         <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4" role="alert">
           <p className="text-sm font-semibold text-red-700">Needs attention: {failedStops.length} failed stop{failedStops.length === 1 ? '' : 's'}</p>
@@ -135,7 +147,7 @@ export default function OwnerDashboard() {
 
       {/* Trend + top drivers */}
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <Card title="Delivery trend (7 days)">
+        <Card title="Orders created (7 days)">
           <DeliveryTrend orders={orders} />
         </Card>
         <Card title="Top drivers" action={<Link href="/owner/reports" className="text-sm font-medium text-blue-700 hover:underline dark:text-blue-400">View all drivers</Link>}>
@@ -243,7 +255,20 @@ export default function OwnerDashboard() {
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Recent Orders</h2>
           </div>
         </div>
-        <div className="overflow-x-auto">
+        {/* Mobile cards: no horizontal scrolling at narrow widths. */}
+        <div className="space-y-2 p-4 sm:hidden">
+          {orders.slice(0, 20).map((o) => (
+            <div key={o.orderId} className="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{o.orderReference}</span>
+                <StatusPill status={o.status} />
+              </div>
+              <p className="mt-1 text-xs text-slate-500">Scheduled {o.scheduledDate} · Created {o.createdAt?.slice(0, 10)}</p>
+            </div>
+          ))}
+          {orders.length === 0 && <p className="py-8 text-center text-sm text-slate-400">No orders yet</p>}
+        </div>
+        <div className="hidden overflow-x-auto sm:block">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
               <tr>

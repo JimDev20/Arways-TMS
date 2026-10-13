@@ -103,7 +103,7 @@ export default function FleetPage() {
         setTotal(r.total);
       })
       .catch((e: unknown) => {
-        setListErr(errorMessage(e, 'Could not load fleet.'));
+        setListErr(errorMessage(e, 'Could not load fleet. Check your connection and try again.'));
       })
       .finally(() => setLoading(false));
   }, []);

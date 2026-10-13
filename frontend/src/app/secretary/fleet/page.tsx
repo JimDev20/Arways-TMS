@@ -51,7 +51,7 @@ export default function SecretaryFleetPage() {
         setTotal(r.total);
       })
       .catch((e: unknown) => {
-        setListErr(errorMessage(e, 'Could not load fleet.'));
+        setListErr(errorMessage(e, 'Could not load fleet. Check your connection and try again.'));
       })
       .finally(() => setLoading(false));
   }, []);
@@ -112,7 +112,7 @@ export default function SecretaryFleetPage() {
       const list = await api<MaintenanceLog[]>(`/trucks/${selected.truckId}/maintenance`).catch(() => []);
       setMaint(list);
     } catch (e: unknown) {
-      setMMsg({ type: 'error', text: errorMessage(e, 'Could not record service.') });
+      setMMsg({ type: 'error', text: errorMessage(e, 'Could not record service. Check your connection and try again.') });
     } finally {
       setMBusy(false);
     }

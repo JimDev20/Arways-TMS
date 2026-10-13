@@ -73,7 +73,7 @@ export default function LoginPage() {
       const body = (await res.json().catch(() => ({}))) as Partial<LoginResponse> & { message?: unknown };
       if (!res.ok) {
         const m = body.message;
-        throw new Error(friendlyErrorMessage(Array.isArray(m) ? m.join(' ') : (m ?? 'Login failed. Check your email spelling and password, then try again.')));
+        throw new Error(friendlyErrorMessage(Array.isArray(m) ? m.join(' ') : (m ?? 'We could not sign you in with those details. Check the email spelling and Caps Lock, then try again. If you need a password reset, contact an Owner.')));
       }
       if (!body.access_token || !body.user) {
         throw new Error('Login failed. The server reply was incomplete. Check your connection and try again.');
@@ -190,10 +190,10 @@ export default function LoginPage() {
               </a>
               <span className="mx-2 text-slate-300" aria-hidden>|</span>
               <a href="/onboarding" className="font-medium text-blue-700 hover:underline dark:text-blue-400">
-                Request access
+                Set up this device
               </a>
             </p>
-            <p className="text-center text-xs text-slate-400">Accounts are invite-only. Clients can request access; ARWAYS approves and sends an invite link.</p>
+            <p className="text-center text-xs text-slate-400">Accounts are invite-only. This setup saves preferences on this device only and does not create an account; ARWAYS sends an invite link after approval.</p>
           </form>
         </div>
         <div className="mt-6 text-center text-xs text-slate-400">
