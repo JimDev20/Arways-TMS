@@ -9,12 +9,13 @@ import { RolesGuard } from '../common/roles.guard.js';
 import { Roles } from '../common/roles.decorator.js';
 import { CurrentUser } from '../common/current-user.decorator.js';
 import type { JwtPayload } from '../common/roles.js';
-import { assertCoords, assertEmail, assertNonEmpty, assertText, TEXT_LIMITS } from '../common/validate.js';
+import { assertCoords, assertEmail, assertIn, assertNonEmpty, assertText, FEEDBACK_CATEGORIES, TEXT_LIMITS } from '../common/validate.js';
 
 // P1 abuse limits: broadcasts 5/day per Owner; geocode 1/s per user (in-memory;
 // single-instance; move to DB/Redis with multiple instances per Playbook).
 const broadcastDay = new Map<string, { count: number; resetAt: number }>();
 const geocodeLast = new Map<string, number>();
+const feedbackDay = new Map<string, { count: number; resetAt: number }>();
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -71,6 +72,50 @@ export class MiscController {
   @Roles('Owner', 'Secretary', 'Client', 'Driver')
   read(@Param('id') id: string) {
     return this.db.update(schema.notifications).set({ isRead: true }).where(eq(schema.notifications.notificationId, id)).then(() => ({ ok: true }));
+  }
+
+  // ---- Feedback (in-app problem reports: no email app needed) ----
+  // Stored in the feedback table and fanned out to active Owners as bell
+  // notifications, so reports are collected even when the user has no
+  // mail client configured. Owners read the full text via GET /feedback.
+  @Post('feedback')
+  @Roles('Owner', 'Secretary', 'Client', 'Driver')
+  async submitFeedback(@Body() b: any, @CurrentUser() user: JwtPayload) {
+    const category = assertIn(b?.category, FEEDBACK_CATEGORIES, 'Category');
+    const message = assertText(b?.message, 'Message', TEXT_LIMITS.message);
+    const screen = typeof b?.screen === 'string' && b.screen.trim() ? b.screen.trim().slice(0, 200) : null;
+    // Abuse limit: 10 reports/day per user (same in-memory pattern as broadcasts).
+    const now = Date.now();
+    const cur = feedbackDay.get(user.sub);
+    if (!cur || now > cur.resetAt) {
+      feedbackDay.set(user.sub, { count: 1, resetAt: now + 24 * 60 * 60 * 1000 });
+    } else {
+      cur.count += 1;
+      if (cur.count > 10) {
+        throw new BadRequestException('Report limit reached (10 per day). Try again tomorrow.');
+      }
+    }
+    await this.db.insert(schema.feedback).values({ userId: user.sub, role: user.role, category, screen, message });
+    const owners: any[] = (await this.db.select().from(schema.users)).filter(
+      (u: any) => u.role === 'Owner' && u.status === 'Active',
+    );
+    if (owners.length > 0) {
+      await this.db.insert(schema.notifications).values(
+        owners.map((o: any) => ({
+          userId: o.userId,
+          notificationType: 'feedback',
+          message: `New ${category.toLowerCase()} from ${user.email}: ${message.slice(0, 120)}`,
+          relatedOrderId: null,
+        })),
+      );
+    }
+    return { ok: true };
+  }
+
+  @Get('feedback')
+  @Roles('Owner')
+  feedbackList() {
+    return this.db.select().from(schema.feedback).orderBy(desc(schema.feedback.createdAt)).limit(50);
   }
 
   // ---- Reports ----

@@ -3,8 +3,11 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import type { Order, RouteFull, StopRow, TruckWithDriver, UserRow } from '@/lib/types';
+import { errorMessage, FEEDBACK_CATEGORIES } from '@/lib/types';
+import { api } from '@/lib/supabase';
 import { Icons } from '@/lib/createLucideIcon';
 import { SearchField } from '@/components/SearchField';
+import { FieldHint } from '@/components/FieldHint';
 
 /* ------------------------------------------------------------------ */
 /* Small layout helpers (wireframe: consistent SaaS cards)             */
@@ -499,9 +502,36 @@ export function CalendarView({ orders, onPick }: { orders: Order[]; onPick: (dat
 export function HelpCenter({ role }: { role: string }) {
   const [open, setOpen] = useState<number | null>(0);
   const pathname = usePathname();
-  const reportHref =
-    `mailto:support@arways.com?subject=${encodeURIComponent(`Problem report (${role}, ${pathname})`)}` +
-    `&body=${encodeURIComponent(`Role: ${role}\nScreen: ${pathname}\n\nWhat happened:\n\nWhat I expected:\n`)}`;
+  // In-app problem report: posts to POST /feedback (stored + fanned out to
+  // Owners), so no email app is needed. Values stay in state on failure.
+  const [fbCategory, setFbCategory] = useState<string>('Problem');
+  const [fbMessage, setFbMessage] = useState('');
+  const [fbBusy, setFbBusy] = useState(false);
+  const [fbSent, setFbSent] = useState(false);
+  const [fbError, setFbError] = useState('');
+  const [fbTouched, setFbTouched] = useState(false);
+  const fbEmpty = !fbMessage.trim();
+  async function submitFeedback(e: React.FormEvent) {
+    e.preventDefault();
+    setFbTouched(true);
+    setFbError('');
+    if (fbEmpty) return;
+    setFbBusy(true);
+    try {
+      await api('/feedback', {
+        method: 'POST',
+        body: JSON.stringify({ category: fbCategory, message: fbMessage.trim(), screen: pathname }),
+      });
+      setFbMessage('');
+      setFbTouched(false);
+      setFbSent(true);
+    } catch (err: unknown) {
+      setFbError(errorMessage(err, 'Could not send the report. Check your connection and try again. Your text is kept below.'));
+    } finally {
+      setFbBusy(false);
+    }
+  }
+  // Obsolete mailto fragment (in-app form below posts to POST /feedback): Role:${role}\nScreen: ${pathname}\n\nWhat happened:\n\nWhat I expected:\n`)}`;
   const faqs: { q: string; a: string }[] =
     role === 'Driver'
       ? [
@@ -558,11 +588,59 @@ export function HelpCenter({ role }: { role: string }) {
           <a href="mailto:support@arways.com" className="btn-ghost inline-flex items-center gap-2 text-sm font-medium">
             <Icons.Mail className="h-4 w-4" />Email support
           </a>
-          <a href={reportHref} className="btn-ghost inline-flex items-center gap-2 text-sm font-medium">
-            <Icons.AlertCircle className="h-4 w-4" />Report a problem
-          </a>
         </div>
-        <p className="mt-3 text-xs text-slate-400">Report a problem opens an email with your role and screen filled in — add what happened and what you expected.</p>
+        <form onSubmit={submitFeedback} aria-label="Report a problem" className="mt-4 space-y-2 border-t border-slate-100 pt-4 dark:border-slate-800">
+          <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Report a problem</p>
+          {fbSent ? (
+            <div>
+              <p role="status" className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">Report sent. ARWAYS reviews every report and follows up on your account email.</p>
+              <button type="button" onClick={() => setFbSent(false)} className="btn-ghost mt-2 text-sm">Send another report</button>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-1.5">
+                <label htmlFor="fb-category" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Kind</label>
+                <select
+                  id="fb-category"
+                  value={fbCategory}
+                  onChange={(e) => setFbCategory(e.target.value)}
+                  className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70] dark:border-slate-700 dark:bg-slate-800"
+                >
+                  {FEEDBACK_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="fb-message" className="block text-sm font-medium text-slate-700 dark:text-slate-300">What happened</label>
+                <textarea
+                  id="fb-message"
+                  value={fbMessage}
+                  onChange={(e) => setFbMessage(e.target.value)}
+                  onBlur={() => setFbTouched(true)}
+                  rows={3}
+                  maxLength={500}
+                  placeholder="Describe what happened and what you expected"
+                  aria-describedby={`fb-count${fbTouched && fbEmpty ? ' fb-message-hint' : ''}`}
+                  className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#0e7a70] focus:outline-none focus:ring-1 focus:ring-[#0e7a70] dark:border-slate-700 dark:bg-slate-800"
+                />
+                <div className="flex items-center justify-between">
+                  {fbTouched && fbEmpty
+                    ? <FieldHint id="fb-message-hint" tone="error">Message is empty. Describe what happened first.</FieldHint>
+                    : <FieldHint id="fb-message-hint" tone="hint">Your role and this screen are attached automatically.</FieldHint>}
+                  <span id="fb-count" className="text-xs text-slate-400">{fbMessage.length}/500</span>
+                </div>
+              </div>
+              {fbError && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{fbError}</p>}
+              <button
+                type="submit"
+                disabled={fbBusy}
+                className="inline-flex items-center gap-2 rounded-lg bg-[#0e7a70] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b625a] focus:outline-none focus:ring-2 focus:ring-[#0e7a70] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Icons.AlertCircle className="h-4 w-4" />
+                {fbBusy ? 'Sending…' : 'Send report'}
+              </button>
+            </>
+          )}
+        </form>
       </div>
     </div>
   );
