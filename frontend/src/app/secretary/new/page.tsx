@@ -237,10 +237,10 @@ export default function SecretaryNewOrderPage() {
             <div key={d.id} className="space-y-4 rounded-lg border border-slate-200 p-4">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold text-slate-800">Drop-off #{i + 1} (optional)</p>
-                <button type="button" onClick={() => setDrops(drops.filter((x) => x.id !== d.id))}
-                  className="text-xs font-medium text-red-600 hover:underline">
-                  Remove
-                </button>
+                  <button type="button" onClick={() => setDrops(drops.filter((x) => x.id !== d.id))}
+                    className="rounded px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 hover:underline">
+                    Remove
+                  </button>
               </div>
               <div className="space-y-1.5">
                 <label className="block text-sm font-medium text-slate-700">Drop-off Address (Store)</label>
