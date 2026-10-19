@@ -8,19 +8,21 @@ import { DB } from '../db/db.module.js';
 import * as schema from '../db/schema.js';
 import type { Role } from '../common/roles.js';
 import { assertPassword } from '../common/validate.js';
+import { FixedWindowLimiter } from '../common/rate-limit.js';
 
-// Simple in-memory login rate limit: 10 attempts / 10 min per IP+email.
-const attempts = new Map<string, { count: number; resetAt: number }>();
+// Login rate limit: 10 attempts / 10 min per IP+email. Bounded so rotating
+// emails cannot grow memory without limit (see FixedWindowLimiter).
+const loginLimiter = new FixedWindowLimiter(10, 10 * 60 * 1000);
 
 export function checkRateLimit(key: string): void {
-  const now = Date.now();
-  const cur = attempts.get(key);
-  if (!cur || now > cur.resetAt) {
-    attempts.set(key, { count: 1, resetAt: now + 10 * 60 * 1000 });
-    return;
+  if (!loginLimiter.hit(key).allowed) {
+    throw new UnauthorizedException('Too many attempts. Try again later.');
   }
-  cur.count += 1;
-  if (cur.count > 10) throw new UnauthorizedException('Too many attempts. Try again later.');
+}
+
+/** Test helper: forget every login bucket. */
+export function resetLoginRateLimit(): void {
+  loginLimiter.resetAll();
 }
 
 @Injectable()

@@ -34,21 +34,35 @@ export class JwtAuthGuard implements CanActivate {
       if (this.db && payload?.sub) {
         const cached = statusCache.get(payload.sub);
         const now = Date.now();
-        let status = cached && now - cached.at < 60_000 ? cached.status : null;
-        if (!status) {
+        let status: string | null = null;
+        let resolved = false;
+        if (cached && now - cached.at < 60_000) {
+          status = cached.status;
+          resolved = true;
+        } else {
           try {
             const rows = await this.db
               .select({ status: schema.users.status })
               .from(schema.users)
               .where(eq(schema.users.userId, payload.sub))
               .limit(1);
-            status = (rows[0] as any)?.status ?? null;
+            // Query succeeded but no row: the account was deleted. Treat it
+            // like an inactive account (never let a deleted user keep access).
+            status = (rows[0] as any)?.status ?? 'Missing';
+            resolved = true;
           } catch {
-            status = null; // DB down: fail open for health/readiness, closed below if user gone
+            // DB down: fail open for health/readiness checks. Nothing is
+            // cached, so the next request re-checks once the DB is back.
+            status = null;
+            resolved = false;
           }
-          statusCache.set(payload.sub, { status: status ?? 'Unknown', at: now });
+          if (resolved) {
+            statusCache.set(payload.sub, { status: status ?? 'Missing', at: now });
+            // Bounded cache: forged/rotated subjects must not grow memory.
+            if (statusCache.size > 10_000) statusCache.clear();
+          }
         }
-        if (status && status !== 'Active') {
+        if (resolved && status !== 'Active') {
           throw new UnauthorizedException('Invalid or expired token');
         }
       }

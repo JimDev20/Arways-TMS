@@ -13,7 +13,7 @@ import { CurrentUser } from '../common/current-user.decorator.js';
 import { encodeCursor, escapeLike, keysetBefore, parseCursor, parseLimit, type Page } from '../common/pagination.js';
 import type { JwtPayload } from '../common/roles.js';
 import { findUnpinnedStops } from '../common/route-pins.js';
-import { assertCoords, assertNonEmpty, ORDER_PRIORITIES, assertIn, assertPhotoUrl, assertText, TEXT_LIMITS } from '../common/validate.js';
+import { assertCoords, assertNonEmpty, ORDER_PRIORITIES, assertIn, assertText, TEXT_LIMITS } from '../common/validate.js';
 
 function point(lon: number, lat: number) {
   return sql`ST_SetSRID(ST_MakePoint(${lon}, ${lat}), 4326)` as any;
