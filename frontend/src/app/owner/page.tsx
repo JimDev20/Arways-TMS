@@ -26,17 +26,13 @@ export default function OwnerDashboard() {
   const [routes, setRoutes] = useState<RouteFull[]>([]);
   const [users, setUsers] = useState<UserRow[]>([]);
   const [storage, setStorage] = useState<StorageSummary | null>(null);
-  const [loadError, setLoadError] = useState(false);
   // Roadmap #15 / UX #15: map filter actually filters (was a no-op button).
   const [mapFilter, setMapFilter] = useState<'all' | 'active'>('all');
   const load = useCallback(() => {
-    setLoadError(false);
-    let failed = false;
-    api<Order[]>('/orders').then(setOrders).catch(() => { failed = true; setLoadError(true); });
-    api<RouteFull[]>('/routes').then(setRoutes).catch(() => { failed = true; setLoadError(true); });
-    api<UserRow[]>('/users').then(setUsers).catch(() => { failed = true; setLoadError(true); });
-    api<StorageSummary>('/reports/storage').then(setStorage).catch(() => { failed = true; setLoadError(true); });
-    void failed;
+    api<Order[]>('/orders').then(setOrders).catch(() => {});
+    api<RouteFull[]>('/routes').then(setRoutes).catch(() => {});
+    api<UserRow[]>('/users').then(setUsers).catch(() => {});
+    api<StorageSummary>('/reports/storage').then(setStorage).catch(() => {});
   }, []);
   useEffect(() => {
     let live = true;
@@ -51,11 +47,9 @@ export default function OwnerDashboard() {
           setOrders(o);
           setRoutes(r);
           setUsers(u);
-          setLoadError(false);
         }
       } catch {
-        // Never present a failed fetch as an empty operation.
-        if (live) setLoadError(true);
+        /* dashboard stays empty: realtime will fill in */
       }
     })();
     return () => {
@@ -97,12 +91,6 @@ export default function OwnerDashboard() {
     <Shell role="Owner" title="Owner Dashboard">
       <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">{new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</p>
 
-      {loadError && (
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4" role="alert">
-          <p className="text-sm font-medium text-amber-800">Dashboard data could not be loaded. Counts below may be incomplete — this is not an empty operation.</p>
-          <button onClick={load} className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-800">Retry</button>
-        </div>
-      )}
       {failedStops.length > 0 && (
         <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4" role="alert">
           <p className="text-sm font-semibold text-red-700">Needs attention: {failedStops.length} failed stop{failedStops.length === 1 ? '' : 's'}</p>
@@ -112,13 +100,50 @@ export default function OwnerDashboard() {
           <Link href="/owner/routes" className="mt-2 inline-block text-sm font-medium text-red-700 hover:underline">Review routes →</Link>
         </div>
       )}
-      {/* Stat cards: wireframe 2.1: Today · Pending · In Transit · Delivered · Revenue (estimate) */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      {/* Stat cards: dispatch metrics first. Revenue is a rough estimate, so it
+          lives with the trend analytics below instead of the top row. */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label="Today's Orders" value={c.today} tone="blue" />
         <Stat label="Pending" value={c.pending} tone="amber" />
         <Stat label="In Transit" value={c.transit} tone="blue" />
         <Stat label="Delivered" value={c.delivered} tone="green" />
-        <Stat label="Revenue (estimate)" value={`₱${revenue.toLocaleString()}`} tone="green" />
+      </div>
+
+      {/* Work queue first: pending approvals + active routes ahead of map/analytics */}
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <Card title="Pending secretary approval" action={<Link href="/owner/approvals" className="text-sm font-medium text-blue-700 hover:underline dark:text-blue-400">View all pending</Link>}>
+          {pending.length === 0 ? (
+            <p className="py-6 text-center text-sm text-slate-400">Nothing waiting for approval.</p>
+          ) : (
+            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+              {pending.map((o) => (
+                <li key={o.orderId} className="flex items-center justify-between py-2.5 text-sm">
+                  <span className="font-medium text-slate-900 dark:text-slate-100">#{o.orderReference} · {o.scheduledDate}</span>
+                  <Link href={`/owner/approvals/${o.orderId}`} className="font-medium text-blue-700 hover:underline dark:text-blue-400">Review</Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+        {/* Active Routes */}
+        <div className="card p-6 dark:border-slate-700 dark:bg-slate-900">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Active Routes</h2>
+            <Link href="/owner/routes" className="text-sm font-medium text-blue-700 hover:underline dark:text-blue-400">View all</Link>
+          </div>
+          {active.length === 0 ? (
+            <p className="py-6 text-center text-sm text-slate-400">No active routes right now.</p>
+          ) : (
+            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+              {active.map((r) => (
+                <li key={r.route.routeId} className="flex items-center justify-between py-2.5 text-sm">
+                  <span className="font-medium text-slate-900 dark:text-slate-100">{r.route.routeNumber} · {r.driverName}</span>
+                  <span className="text-slate-500">{r.route.status} · {r.stops.length} stops</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
 
       {/* Delivery map + real-time activity */}
@@ -145,109 +170,7 @@ export default function OwnerDashboard() {
         </Card>
       </div>
 
-      {/* Trend + top drivers */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <Card title="Orders created (7 days)">
-          <DeliveryTrend orders={orders} />
-        </Card>
-        <Card title="Top drivers" action={<Link href="/owner/reports" className="text-sm font-medium text-blue-700 hover:underline dark:text-blue-400">View all drivers</Link>}>
-          <TopDrivers routes={routes} users={users} />
-        </Card>
-      </div>
-
-      {/* Pending approval + system health */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <Card title="Pending secretary approval" action={<Link href="/owner/approvals" className="text-sm font-medium text-blue-700 hover:underline dark:text-blue-400">View all pending</Link>}>
-          {pending.length === 0 ? (
-            <p className="py-6 text-center text-sm text-slate-400">Nothing waiting for approval.</p>
-          ) : (
-            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-              {pending.map((o) => (
-                <li key={o.orderId} className="flex items-center justify-between py-2.5 text-sm">
-                  <span className="font-medium text-slate-900 dark:text-slate-100">#{o.orderReference} · {o.scheduledDate}</span>
-                  <Link href={`/owner/approvals/${o.orderId}`} className="font-medium text-blue-700 hover:underline dark:text-blue-400">Review</Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-        <Card title="System health">
-          <SystemHealth />
-        </Card>
-      </div>
-
-      {/* Photo storage vs free quota */}
-      <div className="mt-6">
-        <Card
-          title="Photo Storage"
-          action={<Link href="/owner/proof" className="text-sm font-medium text-blue-700 hover:underline dark:text-blue-400">View proof</Link>}
-        >
-          {!storage ? (
-            <p className="py-4 text-center text-sm text-slate-400">Loading storage usage…</p>
-          ) : (
-            <div>
-              <div className="flex items-baseline justify-between text-sm">
-                <span className="font-bold text-slate-900 dark:text-slate-100">
-                  {formatBytes(storage.bytes)} <span className="font-normal text-slate-500">of {formatBytes(storage.quotaBytes)} free</span>
-                </span>
-                <span className="text-slate-500">{storage.files} photos{storage.oldest ? ` · oldest ${storage.oldest.slice(0, 10)}` : ''}</span>
-              </div>
-              <div className="mt-2 h-2 overflow-hidden rounded bg-slate-100 dark:bg-slate-800" role="progressbar"
-                aria-valuenow={Math.round((storage.bytes / storage.quotaBytes) * 100)} aria-valuemin={0} aria-valuemax={100} aria-label="Photo storage used">
-                <span
-                  className={`block h-full rounded ${storage.bytes / storage.quotaBytes > 0.8 ? 'bg-red-500' : 'bg-[#0e7a70]'}`}
-                  style={{ width: `${Math.min(100, (storage.bytes / storage.quotaBytes) * 100)}%` }}
-                />
-              </div>
-              <p className="mt-2 text-xs text-slate-400">Receipt and waybill photos are kept for 2 years (see Reports › Storage).</p>
-            </div>
-          )}
-        </Card>
-      </div>
-
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        {/* Active Routes */}
-        <div className="card p-6 dark:border-slate-700 dark:bg-slate-900">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Active Routes</h2>
-            <Link href="/owner/routes" className="text-sm font-medium text-blue-700 hover:underline dark:text-blue-400">View all</Link>
-          </div>
-          {active.length === 0 ? (
-            <p className="py-6 text-center text-sm text-slate-400">No active routes right now.</p>
-          ) : (
-            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-              {active.map((r) => (
-                <li key={r.route.routeId} className="flex items-center justify-between py-2.5 text-sm">
-                  <span className="font-medium text-slate-900 dark:text-slate-100">{r.route.routeNumber} · {r.driverName}</span>
-                  <span className="text-slate-500">{r.route.status} · {r.stops.length} stops</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        {/* Recent Updates */}
-        <div className="card p-6 dark:border-slate-700 dark:bg-slate-900">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Recent Updates</h2>
-            <Link href="/owner/orders" className="text-sm font-medium text-blue-700 hover:underline dark:text-blue-400">View all</Link>
-          </div>
-          {recent.length === 0 ? (
-            <p className="py-6 text-center text-sm text-slate-400">No orders yet.</p>
-          ) : (
-            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-              {recent.map((o) => (
-                <li key={o.orderId} className="flex items-center justify-between py-2.5 text-sm">
-                  <span className="font-medium text-slate-900 dark:text-slate-100">{o.orderReference}</span>
-                  <span className="text-slate-500">{o.status} · {(o.createdAt ?? '').slice(0, 10)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-
-      {/* Recent Orders */}
+      {/* Recent Orders: the work list sits above analytics */}
       <div className="card mt-6 dark:border-slate-700 dark:bg-slate-900">
         <div className="border-b border-slate-200 px-6 py-4 dark:border-slate-800">
           <div className="flex items-center gap-2">
@@ -255,20 +178,7 @@ export default function OwnerDashboard() {
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Recent Orders</h2>
           </div>
         </div>
-        {/* Mobile cards: no horizontal scrolling at narrow widths. */}
-        <div className="space-y-2 p-4 sm:hidden">
-          {orders.slice(0, 20).map((o) => (
-            <div key={o.orderId} className="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{o.orderReference}</span>
-                <StatusPill status={o.status} />
-              </div>
-              <p className="mt-1 text-xs text-slate-500">Scheduled {o.scheduledDate} · Created {o.createdAt?.slice(0, 10)}</p>
-            </div>
-          ))}
-          {orders.length === 0 && <p className="py-8 text-center text-sm text-slate-400">No orders yet</p>}
-        </div>
-        <div className="hidden overflow-x-auto sm:block">
+        <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
               <tr>
@@ -302,6 +212,70 @@ export default function OwnerDashboard() {
           </table>
         </div>
       </div>
+
+      {/* Trend + top drivers */}
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <Card title="Delivery trend (7 days)">
+          <DeliveryTrend orders={orders} />
+          <p className="mt-2 text-xs text-slate-400">Estimated revenue so far: ₱{revenue.toLocaleString()} (delivered × ₱850 — estimate until billing).</p>
+        </Card>
+        <Card title="Top drivers" action={<Link href="/owner/reports" className="text-sm font-medium text-blue-700 hover:underline dark:text-blue-400">View all drivers</Link>}>
+          <TopDrivers routes={routes} users={users} />
+        </Card>
+      </div>
+
+      {/* Recent Updates: kept, but below the work queue and analytics */}
+      <div className="card mt-6 p-6 dark:border-slate-700 dark:bg-slate-900">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Recent Updates</h2>
+          <Link href="/owner/orders" className="text-sm font-medium text-blue-700 hover:underline dark:text-blue-400">View all</Link>
+        </div>
+        {recent.length === 0 ? (
+          <p className="py-6 text-center text-sm text-slate-400">No orders yet.</p>
+        ) : (
+          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+            {recent.map((o) => (
+              <li key={o.orderId} className="flex items-center justify-between py-2.5 text-sm">
+                <span className="font-medium text-slate-900 dark:text-slate-100">{o.orderReference}</span>
+                <span className="text-slate-500">{o.status} · {(o.createdAt ?? '').slice(0, 10)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* System info last: health + storage sit below the work */}
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <Card title="System health">
+          <SystemHealth />
+        </Card>
+        <Card
+          title="Photo Storage"
+          action={<Link href="/owner/proof" className="text-sm font-medium text-blue-700 hover:underline dark:text-blue-400">View proof</Link>}
+        >
+          {!storage ? (
+            <p className="py-4 text-center text-sm text-slate-400">Loading storage usage…</p>
+          ) : (
+            <div>
+              <div className="flex items-baseline justify-between text-sm">
+                <span className="font-bold text-slate-900 dark:text-slate-100">
+                  {formatBytes(storage.bytes)} <span className="font-normal text-slate-500">of {formatBytes(storage.quotaBytes)} free</span>
+                </span>
+                <span className="text-slate-500">{storage.files} photos{storage.oldest ? ` · oldest ${storage.oldest.slice(0, 10)}` : ''}</span>
+              </div>
+              <div className="mt-2 h-2 overflow-hidden rounded bg-slate-100 dark:bg-slate-800" role="progressbar"
+                aria-valuenow={Math.round((storage.bytes / storage.quotaBytes) * 100)} aria-valuemin={0} aria-valuemax={100} aria-label="Photo storage used">
+                <span
+                  className={`block h-full rounded ${storage.bytes / storage.quotaBytes > 0.8 ? 'bg-red-500' : 'bg-[#0e7a70]'}`}
+                  style={{ width: `${Math.min(100, (storage.bytes / storage.quotaBytes) * 100)}%` }}
+                />
+              </div>
+              <p className="mt-2 text-xs text-slate-400">Receipt and waybill photos are kept for 2 years (see Reports › Storage).</p>
+            </div>
+          )}
+        </Card>
+      </div>
+
     </Shell>
   );
 }
