@@ -7,6 +7,8 @@
     "dev:frontend": "npm --prefix frontend run dev",
     "dev:backend": "npm --prefix backend run start:dev",
     "install:all": "npm --prefix frontend install && npm --prefix backend install",
+    "security:attack": "node scripts/security-attack.mjs",
+    "security:load": "node scripts/load-test.mjs",
     "db:types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > frontend/src/lib/database.types.ts"
   },
   "engines": {

@@ -10,12 +10,15 @@ import { Roles } from '../common/roles.decorator.js';
 import { CurrentUser } from '../common/current-user.decorator.js';
 import type { JwtPayload } from '../common/roles.js';
 import { assertCoords, assertEmail, assertIn, assertNonEmpty, assertText, FEEDBACK_CATEGORIES, TEXT_LIMITS } from '../common/validate.js';
+import { FixedWindowLimiter } from '../common/rate-limit.js';
 
-// P1 abuse limits: broadcasts 5/day per Owner; geocode 1/s per user (in-memory;
-// single-instance; move to DB/Redis with multiple instances per Playbook).
-const broadcastDay = new Map<string, { count: number; resetAt: number }>();
-const geocodeLast = new Map<string, number>();
-const feedbackDay = new Map<string, { count: number; resetAt: number }>();
+// Abuse limits: bounded counters (TTL sweep + key cap) so an attacker cannot
+// grow memory by rotating keys. Broadcasts 5/day per Owner; feedback 10/day
+// per user; geocode 1/s per user. Single-instance only: move to DB/Redis with
+// multiple instances (Security Playbook).
+const broadcastDay = new FixedWindowLimiter(5, 24 * 60 * 60 * 1000);
+const geocodeLimiter = new FixedWindowLimiter(1, 1000);
+const feedbackDay = new FixedWindowLimiter(10, 24 * 60 * 60 * 1000);
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -84,16 +87,9 @@ export class MiscController {
     const category = assertIn(b?.category, FEEDBACK_CATEGORIES, 'Category');
     const message = assertText(b?.message, 'Message', TEXT_LIMITS.message);
     const screen = typeof b?.screen === 'string' && b.screen.trim() ? b.screen.trim().slice(0, 200) : null;
-    // Abuse limit: 10 reports/day per user (same in-memory pattern as broadcasts).
-    const now = Date.now();
-    const cur = feedbackDay.get(user.sub);
-    if (!cur || now > cur.resetAt) {
-      feedbackDay.set(user.sub, { count: 1, resetAt: now + 24 * 60 * 60 * 1000 });
-    } else {
-      cur.count += 1;
-      if (cur.count > 10) {
-        throw new BadRequestException('Report limit reached (10 per day). Try again tomorrow.');
-      }
+    // Abuse limit: 10 reports/day per user.
+    if (!feedbackDay.hit(user.sub).allowed) {
+      throw new BadRequestException('Report limit reached (10 per day). Try again tomorrow.');
     }
     await this.db.insert(schema.feedback).values({ userId: user.sub, role: user.role, category, screen, message });
     const owners: any[] = (await this.db.select().from(schema.users)).filter(
@@ -282,15 +278,8 @@ export class MiscController {
       throw new BadRequestException(`Message is ${message.length}/500 characters. Shorten it to 500 or fewer.`);
     }
     // Abuse limit: 5 broadcasts/day per Owner (Security Playbook).
-    const now = Date.now();
-    const cur = broadcastDay.get(user.sub);
-    if (!cur || now > cur.resetAt) {
-      broadcastDay.set(user.sub, { count: 1, resetAt: now + 24 * 60 * 60 * 1000 });
-    } else {
-      cur.count += 1;
-      if (cur.count > 5) {
-        throw new BadRequestException('Broadcast limit reached (5 per day). Try again tomorrow.');
-      }
+    if (!broadcastDay.hit(user.sub).allowed) {
+      throw new BadRequestException('Broadcast limit reached (5 per day). Try again tomorrow.');
     }
     const users: any[] = await this.db.select().from(schema.users);
     const targets = users.filter(
@@ -319,14 +308,11 @@ export class MiscController {
     const cached = getPhCache(query);
     if (cached) return { results: cached, cached: true };
     // Abuse limit: 1 req/s per user (defense-in-depth with the Nominatim throttle below).
-    const now = Date.now();
-    const last = geocodeLast.get(user.sub) ?? 0;
-    if (now - last < 1000) {
+    if (!geocodeLimiter.hit(user.sub).allowed) {
       // Even when throttled, never return foreign pins: serve local PH
       // fallback (possibly empty) instead of stale/foreign data.
       return { results: localPhFallback(query), throttled: true };
     }
-    geocodeLast.set(user.sub, now);
     // Both providers in parallel: one outage still yields PH pins.
     const [photon, nominatim] = await Promise.all([
       searchPhoton(query).catch(() => [] as GeocodeResult[]),

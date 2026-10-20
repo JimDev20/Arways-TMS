@@ -16,6 +16,7 @@
     "start:prod": "node dist/main.js",
     "lint": "oxlint --type-aware src/ test/",
     "test": "vitest run",
+    "test:e2e": "tsc -p tsconfig.e2e.json && node --test dist-e2e/test/security.e2e-spec.js",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate"
   },

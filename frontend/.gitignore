@@ -30,8 +30,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files — local only, never push (no samples)
+# env files — local only; .env.example holds placeholders only
 .env*
+!.env.example
 
 # vercel
 .vercel

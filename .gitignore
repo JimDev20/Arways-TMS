@@ -9,11 +9,12 @@ node_modules/
 !.yarn/releases
 !.yarn/versions
 
-# Env / credentials — never push real secrets or samples (local only)
+# Env / credentials — real env files stay local; .env.example holds placeholders only
 .env
 .env.*
 *.example
 **/*.example
+!.env.example
 
 # Samples / seeds — local only, never push
 supabase/seed.sql
@@ -35,6 +36,7 @@ yarn-error.log*
 .next/
 **/.next/
 dist/
+dist-e2e/
 **/dist/
 build/
 **/build/
